@@ -141,17 +141,22 @@ class Human_Hypothesis():
 
         elif self.depth == 2:
             robot_rew = self.get_K_weighted_combination_belief()
-            robot_rew = [elem/np.linalg.norm(robot_rew) for elem in robot_rew]
+            robot_rew_min = min(robot_rew)
+            robot_rew = [elem - robot_rew_min for elem in robot_rew]
+            robot_rew_sum = sum(robot_rew)
+            robot_rew = [elem/robot_rew_sum for elem in robot_rew]
 
-            normed_task_rew = [elem / np.linalg.norm(self.team_weights) for elem in self.team_weights]
-            normed_self_rew = [elem / np.linalg.norm(self.ind_rew) for elem in self.ind_rew]
+            self_rew_min = min(self.ind_rew)
+            normed_self_rew = [elem - self_rew_min for elem in self.ind_rew]
+            normed_self_rew_sum = sum(normed_self_rew)
+            normed_self_rew = [elem/normed_self_rew_sum for elem in normed_self_rew]
             # print(f"partner_rew: {robot_rew}, self: {self.ind_rew}")
             max_rew = -10000
             best_color = None
             for color in COLOR_LIST:
                 if state[color] == 0:
                     continue
-                rew = normed_task_rew[color] - robot_rew[color] + normed_self_rew[color]
+                rew = - robot_rew[color] + normed_self_rew[color]
                 if rew > max_rew:
                     max_rew = rew
                     best_color = color

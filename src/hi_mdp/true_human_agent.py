@@ -27,6 +27,9 @@ class True_Human_Model():
             self.update_particle_weights(robot_state, robot_action)
             self.resample_particles()
 
+    def resample(self):
+        self.resample_particles()
+
 
     def construct_robot_pf(self):
         possible_weights = {}
@@ -158,9 +161,9 @@ class True_Human_Model():
             human_action = best_color
 
 
-        r = np.random.uniform(0,1)
-        if r < 0.1:
-            human_action = np.random.choice(other_valid_colors)
+        # r = np.random.uniform(0,1)
+        # if r < 0.1:
+        #     human_action = np.random.choice(other_valid_colors)
         return human_action
 
 

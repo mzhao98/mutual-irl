@@ -24,7 +24,7 @@ class Robot_Model():
 
 
     def sample_hidden_parameters(self):
-        self.num_particles = 100
+        self.num_particles = 50
 
         possible_hidden_params = {}
         self.param_to_model = {}
@@ -152,7 +152,10 @@ class Robot_Model():
             self.param_to_model[param].update_particle_weights(robot_state, robot_action)
             self.param_to_model[param].resample_particles()
 
-
+    def resample(self):
+        self.resample_particles()
+        for param in self.param_to_model:
+            self.param_to_model[param].resample_particles()
 
     def get_max_likelihood_human_model(self):
         best_model = None
