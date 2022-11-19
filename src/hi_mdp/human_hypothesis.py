@@ -1,3 +1,5 @@
+import copy
+
 import numpy as np
 import operator
 import random
@@ -46,6 +48,10 @@ class Human_Hypothesis():
     def update_particle_weights(self, robot_state, robot_action):
         # robot_state = [# blue, # green, # red, # yellow]
         # robot action = color
+
+        if self.depth == 1:
+            return
+
         epsilon = 0.001
         total_weight = 0
 
@@ -85,6 +91,9 @@ class Human_Hypothesis():
             self.beliefs[weight_vector] /= (total_weight + epsilon)
 
     def resample_particles(self):
+        if self.depth == 1:
+            return
+
         possible_weights = {}
 
         population = list(self.beliefs.keys())
@@ -139,6 +148,30 @@ class Human_Hypothesis():
                     best_color = color
             human_action = best_color
 
+        # elif self.depth == 2:
+        #     robot_rew = self.get_K_weighted_combination_belief()
+        #     robot_rew_min = min(robot_rew)
+        #     robot_rew = [elem - robot_rew_min for elem in robot_rew]
+        #     robot_rew_sum = sum(robot_rew)
+        #     robot_rew = [elem/robot_rew_sum for elem in robot_rew]
+        #
+        #     self_rew_min = min(self.ind_rew)
+        #     normed_self_rew = [elem - self_rew_min for elem in self.ind_rew]
+        #     normed_self_rew_sum = sum(normed_self_rew)
+        #     normed_self_rew = [elem/normed_self_rew_sum for elem in normed_self_rew]
+        #     # print(f"partner_rew: {robot_rew}, self: {self.ind_rew}")
+        #     alpha = 0.6
+        #     max_rew = -10000
+        #     best_color = None
+        #     for color in COLOR_LIST:
+        #         if state[color] == 0:
+        #             continue
+        #         rew = - (alpha * robot_rew[color]) + ((1-alpha) * normed_self_rew[color])
+        #         if rew > max_rew:
+        #             max_rew = rew
+        #             best_color = color
+        #     human_action = best_color
+
         elif self.depth == 2:
             robot_rew = self.get_K_weighted_combination_belief()
             robot_rew_min = min(robot_rew)
@@ -151,16 +184,37 @@ class Human_Hypothesis():
             normed_self_rew_sum = sum(normed_self_rew)
             normed_self_rew = [elem/normed_self_rew_sum for elem in normed_self_rew]
             # print(f"partner_rew: {robot_rew}, self: {self.ind_rew}")
+            alpha = 0.6
             max_rew = -10000
             best_color = None
             for color in COLOR_LIST:
                 if state[color] == 0:
                     continue
-                rew = - robot_rew[color] + normed_self_rew[color]
+
+                # hypothetical state update
+                next_state = copy.deepcopy(state)
+                next_state[color] -= 1
+                max_robot_rew = -10000
+                robot_color = None
+                for r_color in COLOR_LIST:
+                    if next_state[r_color] == 0:
+                        continue
+                    r_rew = robot_rew[r_color]
+                    if r_rew > max_robot_rew:
+                        max_robot_rew = r_rew
+                        robot_color = r_color
+
+                next_robot_rew = 0
+                if robot_color:
+                    next_robot_rew = robot_rew[robot_color]
+
+
+                rew = normed_self_rew[color] + next_robot_rew
                 if rew > max_rew:
                     max_rew = rew
                     best_color = color
             human_action = best_color
+
         return human_action
 
     def get_proba_vector_given_state(self, state):

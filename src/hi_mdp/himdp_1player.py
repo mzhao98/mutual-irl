@@ -191,14 +191,15 @@ class HiMDP():
         #
         # # Update human history in state
         # state[HUMAN_IDX].append(robot_action)
+        # print("copy_human_model.beliefs", self.human_model)
 
-        max_belief = max(list(copy_human_model.beliefs.values()))
-        sig_max_belief = 1 / (1 + np.exp(-max_belief))
-        sig_max_belief = 1
+        # max_belief = max(list(copy_human_model.beliefs.values()))
+        # sig_max_belief = 1 / (1 + np.exp(-max_belief))
+        # sig_max_belief = 1
         # update state and human's model of robot
         if human_action is not None and state[ENV_IDX][human_action] > 0:
             # state[ENV_IDX][human_action] -= 1
-            rew += (sig_max_belief * self.human_rew[human_action])
+            rew += (self.human_rew[human_action])
 
         # We're not going to update the robot beliefs. This is bc we just need to solve these mdps
         # self.robot.update_with_partner_action(human_state, human_action)
