@@ -26,9 +26,10 @@ START_STATE = [2,5,1,2]
 
 
 class HiMDP():
-    def __init__(self, human_rew, human_depth):
+    def __init__(self, human_rew, human_depth, vi_type):
         self.human_rew = human_rew
         self.human_depth = human_depth
+        self.vi_type = vi_type
 
         self.create_human_model()
         self.reset()
@@ -156,169 +157,15 @@ class HiMDP():
 
     def robot_step_given_state(self, input_state, robot_action):
         state = copy.deepcopy(input_state)
-        initial_state = copy.deepcopy(input_state)
         # have the robot act
         # update state
         rew = 0
         if state[ENV_IDX][robot_action] > 0:
             state[ENV_IDX][robot_action] -= 1
             rew += self.robot_rew[robot_action]
-            # rew -= self.human_rew[robot_action]
 
-        # Update robot history in state
-        state[ROBOT_IDX].append(robot_action)
-
-        # update human model's model of robot FROM SCRATCH
-        # self.create_human_model()
-        copy_human_model = copy.deepcopy(self.human_model)
-        # sim_state = copy.deepcopy(START_STATE)
-        # for i in range(len(state[ROBOT_IDX])):
-        #     robot_action = state[ROBOT_IDX][i]
-            # human_action = state[HUMAN_IDX][i]
-            # print("sim_state, robot_action", sim_state, robot_action)
-            # if sim_state == [0,4,0,0]:
-                # print("available",self.get_available_actions_from_state([sim_state, [], []]))
-        copy_human_model.update_with_partner_action(initial_state[ENV_IDX], robot_action)
-
-        # if sim_state[robot_action] > 0:
-        #     sim_state[robot_action] -= 1
-            # if sim_state[human_action] > 0:
-            #     sim_state[human_action] -= 1
-
-        # have the human act
-        # print("state", state)
-        human_action = copy_human_model.act(state[ENV_IDX], [], [])
-        #
-        # # Update human history in state
-        # state[HUMAN_IDX].append(robot_action)
-        # print("copy_human_model.beliefs", self.human_model)
-
-        # max_belief = max(list(copy_human_model.beliefs.values()))
-        # sig_max_belief = 1 / (1 + np.exp(-max_belief))
-        # sig_max_belief = 1
-        # update state and human's model of robot
-        if human_action is not None and state[ENV_IDX][human_action] > 0:
-            # state[ENV_IDX][human_action] -= 1
-            rew += (self.human_rew[human_action])
-            # rew += 0
-
-        # We're not going to update the robot beliefs. This is bc we just need to solve these mdps
-        # self.robot.update_with_partner_action(human_state, human_action)
 
         return state, rew, self.is_done_given_state(state)
-
-    def enumerate_states_joint(self):
-        self.reset()
-
-        actions = COLOR_LIST
-        # actions = []
-        # create directional graph to represent all states
-        G = nx.DiGraph()
-
-        visited_states = set()
-
-        stack = [copy.deepcopy(self.state)]
-        # prev_state = self.state
-
-        while stack:
-            state = stack.pop()
-
-            # convert old state to tuple
-            state_tup = self.flatten_to_tuple(state)
-
-            # if state has not been visited, add it to the set of visited states
-            if state_tup not in visited_states:
-                visited_states.add(state_tup)
-
-            # get available
-            available_robot_actions = self.get_available_actions_from_state(state)
-
-            # get the neighbors of this state by looping through possible actions
-            for idx, action in enumerate(available_robot_actions):
-                # set the environment to the current state
-                # self.set_to_state(copy.deepcopy(state))
-
-                # Have the robot take the action
-                current_state = copy.deepcopy(state)
-                # have the robot act
-                # update state
-                current_rew = 0
-                if current_state[ENV_IDX][action] > 0:
-                    current_state[ENV_IDX][action] -= 1
-                    current_rew += self.robot_rew[action]
-                    # current_rew -= self.human_rew[action]
-
-                # convert old state to tuple
-                current_state_tup = self.flatten_to_tuple(current_state)
-                if current_state_tup not in visited_states:
-                    stack.append(copy.deepcopy(current_state))
-
-                # Update robot history in state
-                current_state[ROBOT_IDX].append(action)
-
-                available_human_actions = self.get_available_actions_from_state(current_state)
-
-                for h_idx, h_action in enumerate(available_human_actions):
-                    current_human_state = copy.deepcopy(current_state)
-                    current_human_rew = current_rew
-                    # have the robot act
-                    # update state
-                    if current_human_state[ENV_IDX][h_action] > 0:
-                        current_human_state[ENV_IDX][h_action] -= 1
-                        # current_human_rew += self.human_rew[h_action]
-
-                    # Update human history in state
-                    current_human_state[HUMAN_IDX].append(h_action)
-
-                    done = self.is_done_given_state(current_human_state)
-
-
-                    new_state_tup = self.flatten_to_tuple(current_human_state)
-
-                    if new_state_tup not in visited_states:
-                        stack.append(copy.deepcopy(current_human_state))
-
-                    # add edge to graph from current state to new state with weight equal to reward
-                    G.add_edge(state_tup, new_state_tup, weight=current_human_rew, action=action)
-
-
-        states = list(G.nodes)
-        print("NUMBER OF STATES", len(states))
-        idx_to_state = {i: state for i, state in enumerate(states)}
-        state_to_idx = {state: i for i, state in idx_to_state.items()}
-
-        # pdb.set_trace()
-        action_to_idx = {action: i for i, action in enumerate(actions)}
-        idx_to_action = {i: action for i, action in enumerate(actions)}
-
-        # construct transition matrix and reward matrix of shape [# states, # states, # actions] based on graph
-        transition_mat = np.zeros([len(states), len(states), len(actions)])
-        reward_mat = np.zeros([len(states), len(actions)])
-
-        for i in range(len(states)):
-            # get all outgoing edges from current state
-            edges = G.out_edges(states[i], data=True)
-            for edge in edges:
-                # get index of action in action_idx
-                action_idx_i = action_to_idx[edge[2]['action']]
-                # get index of next state in node list
-                next_state_i = states.index(edge[1])
-                # add edge to transition matrix
-                transition_mat[i, next_state_i, action_idx_i] = 1.0
-                reward_mat[i, action_idx_i] = edge[2]['weight']
-
-        # check that for each state and action pair, the sum of the transition probabilities is 1 (or 0 for terminal states)
-        # for i in range(len(states)):
-        #     for j in range(len(actions)):
-        #         print("np.sum(transition_mat[i, :, j])", np.sum(transition_mat[i, :, j]))
-        #         print("np.sum(transition_mat[i, :, j]", np.sum(transition_mat[i, :, j]))
-                # assert np.isclose(np.sum(transition_mat[i, :, j]), 1.0) or np.isclose(np.sum(transition_mat[i, :, j]),
-                #                                                                       0.0)
-        self.transitions, self.rewards, self.state_to_idx, \
-        self.idx_to_action, self.idx_to_state, self.action_to_idx = transition_mat, reward_mat, state_to_idx, \
-                                                                    idx_to_action, idx_to_state, action_to_idx
-        return transition_mat, reward_mat, state_to_idx, idx_to_action, idx_to_state, action_to_idx
-
 
     def enumerate_states(self):
         self.reset()
@@ -361,7 +208,6 @@ class HiMDP():
                 # add edge to graph from current state to new state with weight equal to reward
                 G.add_edge(state_tup, new_state_tup, weight=rew, action=action)
 
-
         states = list(G.nodes)
         # print("NUMBER OF STATES", len(states))
         idx_to_state = {i: state for i, state in enumerate(states)}
@@ -403,8 +249,10 @@ class HiMDP():
     # implementation of tabular value iteration
     def value_iteration(self):
         self.epsilson = 0.0001
-        self.gamma = 0.999
-        self.maxiter = 100000
+        self.gamma = 0.9
+        self.maxiter = 100
+
+
         """
         Parameters
         ----------
@@ -431,6 +279,7 @@ class HiMDP():
         # initialize value function
         pi = np.zeros((n_states, 1))
         vf = np.zeros((n_states, 1))
+        Q = np.zeros((n_states, n_actions))
 
         for i in range(self.maxiter):
             # initalize delta
@@ -439,10 +288,95 @@ class HiMDP():
             for s in range(n_states):
                 # store old value function
                 old_v = vf[s].copy()
-                # compute new value function
-                # vf[s] = np.max(np.sum((rewards[s] + gamma * vf) * transitions[s,:,:],0))
-                # inner_vf = np.max(np.sum((self.partner_rewards[s] + self.gamma * vf) * self.transitions[s, :, :], 0))
-                vf[s] = np.max(np.sum((self.rewards[s] + self.gamma * vf) * self.transitions[s, :, :], 0))
+
+                # compute new Q values
+
+                if self.vi_type == 'mmvi':
+                    # Add partner rew
+                    initial_state = copy.deepcopy(list(self.idx_to_state[s]))
+                    for action_idx in range(n_actions):
+                        r_sa = self.rewards[s][action_idx]
+                        r_s1aH = 0
+                        robot_action = self.idx_to_action[action_idx]
+
+                        # have the robot act
+                        current_state = copy.deepcopy(list(self.idx_to_state[s]))
+
+                        # update state
+                        if current_state[robot_action] > 0:
+                            current_state[robot_action] -= 1
+
+                            # update human model's model of robot based on last robot action
+                            copy_human_model = copy.deepcopy(self.human_model)
+                            copy_human_model.update_with_partner_action(initial_state, robot_action)
+                            human_action = copy_human_model.act(current_state, [], [])
+
+                            # update state and human's model of robot
+                            if human_action is not None and current_state[human_action] > 0:
+                                r_s1aH += (self.human_rew[human_action])
+                                current_state[human_action] -= 1
+
+                        s11 = self.state_to_idx[tuple(current_state)]
+                        joint_reward = r_sa + r_s1aH
+                        V_s11 = vf[s11]
+                        Q[s,action_idx] = (self.gamma * V_s11)
+
+                elif self.vi_type == 'mmvi-nh':
+                    # Add partner rew
+                    initial_state = copy.deepcopy(list(self.idx_to_state[s]))
+                    for action_idx in range(n_actions):
+                        r_sa = self.rewards[s][action_idx]
+                        r_s1aH = 0
+                        robot_action = self.idx_to_action[action_idx]
+
+                        # have the robot act
+                        current_state = copy.deepcopy(list(self.idx_to_state[s]))
+
+                        # update state
+                        if current_state[robot_action] > 0:
+                            current_state[robot_action] -= 1
+
+                            # update human model's model of robot based on last robot action
+                            copy_human_model = copy.deepcopy(self.human_model)
+                            # copy_human_model.update_with_partner_action(initial_state, robot_action)
+                            human_action = copy_human_model.act(current_state, [], [])
+
+                            # update state and human's model of robot
+                            if human_action is not None and current_state[human_action] > 0:
+                                r_s1aH += (self.human_rew[human_action])
+                                current_state[human_action] -= 1
+
+                        s11 = self.state_to_idx[tuple(current_state)]
+                        joint_reward = r_sa + r_s1aH
+                        V_s11 = vf[s11]
+                        Q[s,action_idx] = (self.gamma * V_s11)
+
+                else:
+                    # Add partner rew
+                    initial_state = copy.deepcopy(list(self.idx_to_state[s]))
+                    for action_idx in range(n_actions):
+                        r_sa = self.rewards[s][action_idx]
+                        r_s1aH = 0
+                        robot_action = self.idx_to_action[action_idx]
+
+                        # have the robot act
+                        current_state = copy.deepcopy(list(self.idx_to_state[s]))
+
+                        # update state
+                        if current_state[robot_action] > 0:
+                            current_state[robot_action] -= 1
+
+                        s11 = self.state_to_idx[tuple(current_state)]
+                        joint_reward = r_sa + r_s1aH
+                        V_s11 = vf[s11]
+                        Q[s, action_idx] = joint_reward + (self.gamma * V_s11)
+
+
+                # print("Q[s,:]", Q[s,:])
+
+                # print("shape Q[s,:]", np.shape(Q[s,:]))
+                vf[s] = np.max(Q[s,:], 0)
+                # print("vf[s]", vf[s])
                 # vf[s] = np.max(np.sum((rewards[s]) * transitions[s, :, :], 0))
                 # compute delta
                 delta = np.max((delta, np.abs(old_v - vf[s])[0]))
@@ -452,32 +386,107 @@ class HiMDP():
                 #     print("action = ", action)
                 # pdb.set_trace()
             # check for convergence
+            # print(f'delta = {delta}, iteration {i}')
             if delta < self.epsilson:
+                # print("DONE")
                 break
         # compute optimal policy
         policy = {}
         for s in range(n_states):
-            # pdb.set_trace()
-            # pi[s] = np.argmax(np.sum(vf * transitions[s,:,:],0))
-            pi[s] = np.argmax(np.sum((self.rewards[s] + self.gamma * vf) * self.transitions[s, :, :], 0))
-            policy[s] = np.sum((self.rewards[s] + self.gamma * vf) * self.transitions[s, :, :], 0)
-            # pi[s] = np.sum(vf * transitions[s,:,:],0)
+            # store old value function
+            old_v = vf[s].copy()
+
+            # compute new Q values
+
+            if self.vi_type == 'mmvi':
+                # Add partner rew
+                initial_state = copy.deepcopy(list(self.idx_to_state[s]))
+                for action_idx in range(n_actions):
+                    r_sa = self.rewards[s][action_idx]
+                    r_s1aH = 0
+                    robot_action = self.idx_to_action[action_idx]
+
+                    # have the robot act
+                    current_state = copy.deepcopy(list(self.idx_to_state[s]))
+
+                    # update state
+                    if current_state[robot_action] > 0:
+                        current_state[robot_action] -= 1
+
+                        # update human model's model of robot based on last robot action
+                        copy_human_model = copy.deepcopy(self.human_model)
+                        copy_human_model.update_with_partner_action(initial_state, robot_action)
+                        human_action = copy_human_model.act(current_state, [], [])
+
+                        # update state and human's model of robot
+                        if human_action is not None and current_state[human_action] > 0:
+                            r_s1aH += (self.human_rew[human_action])
+                            current_state[human_action] -= 1
+
+                    s11 = self.state_to_idx[tuple(current_state)]
+                    joint_reward = r_sa + r_s1aH
+                    V_s11 = vf[s11]
+                    Q[s, action_idx] = (self.gamma * V_s11)
+
+            elif self.vi_type == 'mmvi-nh':
+                # Add partner rew
+                initial_state = copy.deepcopy(list(self.idx_to_state[s]))
+                for action_idx in range(n_actions):
+                    r_sa = self.rewards[s][action_idx]
+                    r_s1aH = 0
+                    robot_action = self.idx_to_action[action_idx]
+
+                    # have the robot act
+                    current_state = copy.deepcopy(list(self.idx_to_state[s]))
+
+                    # update state
+                    if current_state[robot_action] > 0:
+                        current_state[robot_action] -= 1
+
+                        # update human model's model of robot based on last robot action
+                        copy_human_model = copy.deepcopy(self.human_model)
+                        # copy_human_model.update_with_partner_action(initial_state, robot_action)
+                        human_action = copy_human_model.act(current_state, [], [])
+
+                        # update state and human's model of robot
+                        if human_action is not None and current_state[human_action] > 0:
+                            r_s1aH += (self.human_rew[human_action])
+                            current_state[human_action] -= 1
+
+                    s11 = self.state_to_idx[tuple(current_state)]
+                    joint_reward = r_sa + r_s1aH
+                    V_s11 = vf[s11]
+                    Q[s, action_idx] = (self.gamma * V_s11)
+
+            else:
+                # Add partner rew
+                initial_state = copy.deepcopy(list(self.idx_to_state[s]))
+                for action_idx in range(n_actions):
+                    r_sa = self.rewards[s][action_idx]
+                    r_s1aH = 0
+                    robot_action = self.idx_to_action[action_idx]
+
+                    # have the robot act
+                    current_state = copy.deepcopy(list(self.idx_to_state[s]))
+
+                    # update state
+                    if current_state[robot_action] > 0:
+                        current_state[robot_action] -= 1
+
+                    s11 = self.state_to_idx[tuple(current_state)]
+                    joint_reward = r_sa + r_s1aH
+                    V_s11 = vf[s11]
+                    Q[s, action_idx] = joint_reward + (self.gamma * V_s11)
+
+            pi[s] = np.argmax(Q[s, :], 0)
+            policy[s] = Q[s, :]
+            # print("pi[s]", pi[s])
 
         self.vf = vf
         self.pi = pi
         self.policy = policy
         # print("self.pi", self.pi)
         return vf, pi
-
-
-
-
-
-
-if __name__ == "__main__":
-    test = HiMDP((0.9, 0.1, -0.9, 0.2), 1)
-    test.enumerate_states()
-    test.value_iteration()
 
 
 

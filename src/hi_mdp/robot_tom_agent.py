@@ -3,6 +3,7 @@ import pdb
 import numpy as np
 import operator
 import random
+import matplotlib.pyplot as plt
 
 BLUE = 0
 GREEN = 1
@@ -10,21 +11,27 @@ RED = 2
 YELLOW = 3
 COLOR_LIST = [BLUE, GREEN, RED, YELLOW]
 
-from himdp_1player import HiMDP
+from hip_mdp_1player_optimized import HiMDP
+# from hip_mdp_1player import HiMDP
 from human_hypothesis import Human_Hypothesis
 
 class Robot_Model():
-    def __init__(self, individual_reward, mm_order, num_particles=1):
+    def __init__(self, individual_reward, mm_order, vi_type, num_particles=100):
         self.ind_rew = individual_reward
         self.num_particles = num_particles
         self.team_weights = [1, 1, 1, 1]
         self.mm_order = mm_order
         self.sample_hidden_parameters()
+        self.num_particles = num_particles
+        self.vi_type = vi_type
+
+        self.pf_history = []
+        self.pf_history.append(self.get_K_weighted_combination_belief(self.beliefs))
 
 
 
     def sample_hidden_parameters(self):
-        self.num_particles = 50
+
         possible_hidden_params = {}
 
         if self.mm_order == 'first-only':
@@ -169,6 +176,63 @@ class Robot_Model():
         self.update_particle_weights(human_state, human_action)
         self.resample_particles()
 
+
+        self.pf_history.append(self.get_K_weighted_combination_belief(self.beliefs))
+
+    def plot_weight_updates(self, savename='weights.png'):
+        # TODO
+
+        weights_of_blue_over_time = []
+        weights_of_green_over_time = []
+        weights_of_red_over_time = []
+        weights_of_yellow_over_time = []
+        depth_over_time = []
+        for (weighted_combination, weighted_depth) in self.pf_history:
+            
+            weights_of_blue_over_time.append(weighted_combination[0])
+            weights_of_green_over_time.append(weighted_combination[1])
+            weights_of_red_over_time.append(weighted_combination[2])
+            weights_of_yellow_over_time.append(weighted_combination[3])
+            depth_over_time.append(weighted_depth)
+
+        
+        plt.plot(range(len(weights_of_blue_over_time)), weights_of_blue_over_time, color='blue', label='blue')
+        plt.plot(range(len(weights_of_green_over_time)), weights_of_green_over_time, color='green', label='green')
+        plt.plot(range(len(weights_of_red_over_time)), weights_of_red_over_time, color='red', label='red')
+        plt.plot(range(len(weights_of_yellow_over_time)), weights_of_yellow_over_time, color='yellow', label='yellow')
+        plt.plot(range(len(depth_over_time)), depth_over_time, color='m', label='depth')
+
+        plt.xlabel("Timestep")
+        plt.ylabel("Belief Weight and Depth")
+        plt.legend()
+        plt.title(f"Robot's Beliefs of Human Models: ")
+        plt.savefig(f"{savename}")
+        plt.close()
+
+    def get_max_belief(self):
+        max_prob = 0
+        best_weights = None
+        for weight_vector in self.beliefs:
+            if self.beliefs[weight_vector] > max_prob:
+                max_prob = self.beliefs[weight_vector]
+                best_weights = weight_vector
+
+        return best_weights
+
+    def get_K_weighted_combination_belief(self, beliefs, k=5):
+
+        top_5 = dict(sorted(beliefs.items(), key=operator.itemgetter(1), reverse=True)[:k])
+        weighted_combination = np.array([0, 0, 0, 0])
+        weighted_depth = 0.0
+        for (weight_vector, depth) in top_5:
+            prob = beliefs[(weight_vector, depth)]
+            weighted_combination = weighted_combination + (np.array(list(weight_vector)) * prob)
+            weighted_depth = weighted_depth + (depth * prob)
+
+        weighted_combination = tuple(weighted_combination)
+
+        return (weighted_combination, weighted_depth)
+
     def update_human_models_with_robot_action(self, robot_state, robot_action):
         for param in self.param_to_model:
             self.param_to_model[param].update_particle_weights(robot_state, robot_action)
@@ -193,7 +257,7 @@ class Robot_Model():
     def act(self, input_state, robot_history, human_history):
         (human_pref, human_depth), human_model = self.get_max_likelihood_human_model()
 
-        self.himdp = HiMDP(human_pref, human_depth)
+        self.himdp = HiMDP(human_pref, human_depth, self.vi_type)
         self.himdp.set_human_model(human_model)
         self.himdp.enumerate_states()
         self.himdp.value_iteration()

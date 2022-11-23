@@ -1,6 +1,7 @@
 import numpy as np
 import operator
 import random
+import copy
 
 BLUE = 0
 GREEN = 1
@@ -9,7 +10,7 @@ YELLOW = 3
 COLOR_LIST = [BLUE, GREEN, RED, YELLOW]
 
 class True_Human_Model():
-    def __init__(self, individual_reward, depth, num_particles=10):
+    def __init__(self, individual_reward, depth, num_particles=100):
         self.ind_rew = individual_reward
         self.depth = depth
         self.num_particles = num_particles
@@ -159,8 +160,50 @@ class True_Human_Model():
                     max_rew = rew
                     best_color = color
             human_action = best_color
-
-
+        # elif self.depth == 2:
+        #     robot_rew = self.get_K_weighted_combination_belief()
+        #     robot_rew_min = min(robot_rew)
+        #     robot_rew = [elem - robot_rew_min for elem in robot_rew]
+        #     robot_rew_sum = sum(robot_rew)
+        #     robot_rew = [elem/robot_rew_sum for elem in robot_rew]
+        #
+        #     self_rew_min = min(self.ind_rew)
+        #     normed_self_rew = [elem - self_rew_min for elem in self.ind_rew]
+        #     normed_self_rew_sum = sum(normed_self_rew)
+        #     normed_self_rew = [elem/normed_self_rew_sum for elem in normed_self_rew]
+        #     # print(f"partner_rew: {robot_rew}, self: {self.ind_rew}")
+        #     alpha = 0.6
+        #     max_rew = -10000
+        #     best_color = None
+        #     for color in COLOR_LIST:
+        #         if state[color] == 0:
+        #             continue
+        #
+        #         # hypothetical state update
+        #         next_state = copy.deepcopy(state)
+        #         next_state[color] -= 1
+        #         max_robot_rew = -10000
+        #         robot_color = None
+        #         for r_color in COLOR_LIST:
+        #             if next_state[r_color] == 0:
+        #                 continue
+        #             r_rew = robot_rew[r_color]
+        #             if r_rew > max_robot_rew:
+        #                 max_robot_rew = r_rew
+        #                 robot_color = r_color
+        #
+        #         next_robot_rew = 0
+        #         if robot_color:
+        #             next_robot_rew = robot_rew[robot_color]
+        #
+        #
+        #         rew = normed_self_rew[color] + next_robot_rew
+        #         if rew > max_rew:
+        #             max_rew = rew
+        #             best_color = color
+        #     human_action = best_color
+        #
+        #
         # r = np.random.uniform(0,1)
         # if r < 0.1:
         #     human_action = np.random.choice(other_valid_colors)

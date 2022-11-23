@@ -11,7 +11,7 @@ YELLOW = 3
 COLOR_LIST = [BLUE, GREEN, RED, YELLOW]
 
 class Human_Hypothesis():
-    def __init__(self, individual_reward, depth, num_particles=50):
+    def __init__(self, individual_reward, depth, num_particles=100):
         self.ind_rew = individual_reward
         self.depth = depth
         self.num_particles = num_particles
@@ -69,7 +69,9 @@ class Human_Hypothesis():
             weight_vector_normed_positive = [e - min(weight_vector) + epsilon for e in weight_vector]
             weight_vector_normed_positive = [e / (sum(weight_vector_normed_positive)) for e in
                                              weight_vector_normed_positive]
-
+            # print("weight_vector_normed_positive", weight_vector_normed_positive)
+            # print("robot_state", robot_state)
+            # print("robot_action", robot_action)
             restructured_weight_vector = []
 
             for color in COLOR_LIST:
@@ -83,6 +85,7 @@ class Human_Hypothesis():
                 restructured_weight_vector[color] = restructured_weight_vector[color] / (sum_weight_values + epsilon)
 
             prob_action_given_theta_state = restructured_weight_vector[robot_action]
+            # print("prob_action_given_theta_state", prob_action_given_theta_state)
             posterior = (prob_theta * prob_action_given_theta_state) / (prob_action_given_state + epsilon)
             self.beliefs[weight_vector] = posterior
             total_weight += posterior

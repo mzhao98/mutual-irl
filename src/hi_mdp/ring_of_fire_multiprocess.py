@@ -102,7 +102,7 @@ def plot_results(experiment_results, num_rounds, savename="images/test.png"):
     means = np.array(means)
     stds = np.array(stds)
 
-    plt.plot(range(len(means)), means, label='First', c='g')
+    plt.plot(range(len(means)), means, label='First', c='g',linewidth=4, alpha=0.5)
     plt.fill_between(range(len(means)), means - stds, means + stds, alpha=0.2, facecolor='g', edgecolor='g')
 
     means = []
@@ -113,7 +113,7 @@ def plot_results(experiment_results, num_rounds, savename="images/test.png"):
     means = np.array(means)
     stds = np.array(stds)
 
-    plt.plot(range(len(means)), means, label='Second', c='b')
+    plt.plot(range(len(means)), means, label='Second', c='b',linewidth=6, alpha=0.4)
     plt.fill_between(range(len(means)), means - stds, means + stds, alpha=0.2, facecolor='b', edgecolor='b')
 
     means = []
@@ -124,7 +124,7 @@ def plot_results(experiment_results, num_rounds, savename="images/test.png"):
     means = np.array(means)
     stds = np.array(stds)
 
-    plt.plot(range(len(means)), means, label='Both', c='r')
+    plt.plot(range(len(means)), means, label='Both', c='r', linewidth=4, alpha=0.7)
     plt.fill_between(range(len(means)), means - stds, means + stds, alpha=0.2, facecolor='r', edgecolor='r')
 
     plt.axhline(y=0.8, xmin=0, xmax=num_rounds - 1, linewidth=2, color='k', label="greedy")
@@ -136,15 +136,15 @@ def plot_results(experiment_results, num_rounds, savename="images/test.png"):
     plt.title("Teams with First-Order vs Second-Order Robot")
     plt.savefig(savename)
     print("saved to: ", savename)
-    plt.show()
+    plt.close()
 
 
-def run_k_rounds(mm_order, seed, num_rounds):
+def run_k_rounds(mm_order, seed, num_rounds, vi_type):
     print(f"running seed {seed} ")
     np.random.seed(seed)
 
-    robot_agent = Robot_Model((0.9, -0.9, 0.1, 0.3), mm_order=mm_order)
-    true_human_agent = True_Human_Model((0.9, 0.1, -0.9, 0.2), 2)
+    robot_agent = Robot_Model((0.9, -0.9, 0.1, 0.3), mm_order=mm_order, vi_type=vi_type)
+    true_human_agent = True_Human_Model((0.9, 0.1, -0.9, 0.2), 1)
     rof_game = RingOfFire(robot_agent, true_human_agent)
     rof_game.run_full_game()
 
@@ -154,11 +154,13 @@ def run_k_rounds(mm_order, seed, num_rounds):
         rof_game.reset()
         total_rew = rof_game.run_full_game()
         collective_scores[round].append(total_rew)
+
+    # robot_agent.plot_weight_updates(f"exp26_robot_weightupdates_mmorder{mm_order}_{seed}seed.png")
     return collective_scores
 
 def compare_mm():
-    np.random.seed(0)
-    num_seeds = 10
+    # np.random.seed(0)
+    num_seeds = 100
     list_of_random_seeds = np.random.randint(0, 100000, num_seeds)
     # list_of_random_seeds = [76317, 76219, 83657, 54528, 81906, 70048, 89183, 82939, 98333, 52622]
     # robot_agent = Human_Model((0.9, -0.9, 0.1, 0.3), 2)
@@ -186,9 +188,9 @@ def compare_mm():
 
     plot_results(experiment_results, num_rounds, f"images/exp25_noisy_true_{num_seeds}-seeds.png")
 
-def run_ablation():
-    np.random.seed(0)
-    num_seeds = 20
+def run_experiment(vi_type, n_seeds):
+    # np.random.seed(0)
+    num_seeds = n_seeds
     list_of_random_seeds = np.random.randint(0, 100000, num_seeds)
     # list_of_random_seeds = [76317, 76219, 83657, 54528, 81906, 70048, 89183, 82939, 98333, 52622]
     # robot_agent = Human_Model((0.9, -0.9, 0.1, 0.3), 2)
@@ -201,10 +203,10 @@ def run_ablation():
     both_results = {x: [] for x in range(num_rounds)}
 
     with Pool() as pool:
-        first_order_scores = pool.starmap(run_k_rounds, [('first-only', seed_val, num_rounds) for seed_val in list_of_random_seeds])
-        second_order_scores = pool.starmap(run_k_rounds, [('second-only', seed_val, num_rounds) for seed_val in list_of_random_seeds])
+        first_order_scores = pool.starmap(run_k_rounds, [('first-only', seed_val, num_rounds, vi_type) for seed_val in list_of_random_seeds])
+        second_order_scores = pool.starmap(run_k_rounds, [('second-only', seed_val, num_rounds, vi_type) for seed_val in list_of_random_seeds])
 
-        both_order_scores = pool.starmap(run_k_rounds, [('both', seed_val, num_rounds) for seed_val in list_of_random_seeds])
+        both_order_scores = pool.starmap(run_k_rounds, [('both', seed_val, num_rounds, vi_type) for seed_val in list_of_random_seeds])
 
         for result in first_order_scores:
             for round_no in first_results:
@@ -222,7 +224,9 @@ def run_ablation():
     experiment_results[2] = second_results
     experiment_results[3] = both_results
 
-    plot_results(experiment_results, num_rounds, f"images/exp25_noisy_true_{num_seeds}-seeds.png")
+    plot_results(experiment_results, num_rounds, f"images/exp30_opt_fotrue_{vi_type}-actual_100p_{num_seeds}-seeds.png")
+
+    print(f"Model {vi_type}: Results:")
 
     end_rews = [elem for elem in experiment_results[1][num_rounds-1]]
     print("First only = ", (np.mean(end_rews), np.std(end_rews)))
@@ -234,7 +238,11 @@ def run_ablation():
     print("Both = ", (np.mean(end_rews), np.std(end_rews)))
 
 
-
+def run_ablation():
+    number_of_seeds = 1000
+    run_experiment(vi_type='mmvi', n_seeds = number_of_seeds)
+    run_experiment(vi_type='stdvi', n_seeds = number_of_seeds)
+    run_experiment(vi_type='mmvi-nh', n_seeds= number_of_seeds)
 
 if __name__ == "__main__":
     run_ablation()
