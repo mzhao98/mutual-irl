@@ -175,7 +175,7 @@ def run_experiment(vi_type, n_seeds, true_human_order):
     second_results = {x: [] for x in range(num_rounds)}
     both_results = {x: [] for x in range(num_rounds)}
 
-    with Pool(processes=4) as pool:
+    with Pool(processes=8) as pool:
         first_order_scores = pool.starmap(run_k_rounds, [('first-only', seed_val, num_rounds, vi_type, true_human_order) for seed_val in list_of_random_seeds])
         second_order_scores = pool.starmap(run_k_rounds, [('second-only', seed_val, num_rounds, vi_type, true_human_order) for seed_val in list_of_random_seeds])
 
