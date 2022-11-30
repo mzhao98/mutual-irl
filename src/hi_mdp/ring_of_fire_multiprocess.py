@@ -144,6 +144,8 @@ def run_k_rounds(mm_order, seed, num_rounds, vi_type):
     np.random.seed(seed)
 
     robot_agent = Robot_Model((0.9, -0.9, 0.1, 0.3), mm_order=mm_order, vi_type=vi_type)
+
+
     true_human_agent = True_Human_Model((0.9, 0.1, -0.9, 0.2), 1)
     rof_game = RingOfFire(robot_agent, true_human_agent)
     rof_game.run_full_game()
@@ -202,7 +204,7 @@ def run_experiment(vi_type, n_seeds):
     second_results = {x: [] for x in range(num_rounds)}
     both_results = {x: [] for x in range(num_rounds)}
 
-    with Pool() as pool:
+    with Pool(processes=4) as pool:
         first_order_scores = pool.starmap(run_k_rounds, [('first-only', seed_val, num_rounds, vi_type) for seed_val in list_of_random_seeds])
         second_order_scores = pool.starmap(run_k_rounds, [('second-only', seed_val, num_rounds, vi_type) for seed_val in list_of_random_seeds])
 
@@ -224,7 +226,7 @@ def run_experiment(vi_type, n_seeds):
     experiment_results[2] = second_results
     experiment_results[3] = both_results
 
-    plot_results(experiment_results, num_rounds, f"images/exp30_opt_fotrue_{vi_type}-actual_100p_{num_seeds}-seeds.png")
+    plot_results(experiment_results, num_rounds, f"images/exp31_opt_fotrue_{vi_type}-actual_100p_{num_seeds}-seeds.png")
 
     print(f"Model {vi_type}: Results:")
 
@@ -239,7 +241,7 @@ def run_experiment(vi_type, n_seeds):
 
 
 def run_ablation():
-    number_of_seeds = 1000
+    number_of_seeds = 100
     run_experiment(vi_type='mmvi', n_seeds = number_of_seeds)
     run_experiment(vi_type='stdvi', n_seeds = number_of_seeds)
     run_experiment(vi_type='mmvi-nh', n_seeds= number_of_seeds)
