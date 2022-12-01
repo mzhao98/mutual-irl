@@ -1,7 +1,14 @@
 import pdb
 
-from envs.full_info_env import Joint_MDP
+import sys
+# sys.path.insert(1,'joint_mdp_long_horz') 
+import os
+# print(os.path.abspath(os.getcwd()))
+sys.path.insert(1, '../joint_mdp_long_horz')
+
+
 from algs.value_iteration import value_iteration, find_policy
+from envs.full_info_env import Joint_MDP
 from envs.utils import *
 
 
@@ -154,7 +161,28 @@ def test_vi_functionality():
     #
     # print(f"FINAL REWARD for team = {total_reward}")
 
+def compute_optimal_greedy_rew(robot_rew, human_rew):
+    # players_to_reward = [(0.9, -0.9, 0.1, 0.3), (0.9, 0.1, -0.9, 0.2)]
+    players_to_reward = [robot_rew, human_rew]
+    env = Joint_MDP(index_of_human=1, index_of_robot=2, players_to_reward=players_to_reward)
+    transitions, rewards, state_to_idx, idx_to_action, idx_to_state, action_to_idx = env.enumerate_states()
 
+    # compute optimal policy with value iteration
+    print("running value iteration...")
+    values, policy = value_iteration(transitions, rewards)
+    # policy = find_policy(n_states=len(state_to_idx), n_actions=len(idx_to_action), transition_probabilities=transitions,
+    #                              reward=rewards, discount=0.99,
+    #             threshold=1e-2, v=None, stochastic=True, max_iters=10)
+    print("...completed value iteration")
+    # print("policy", policy)
+    # return
+
+    vi_rew = env.rollout_full_game_vi_policy(policy)
+    print(f"FINAL REWARD for optimal team = {vi_rew}")
+
+    greedy_rew = env.rollout_full_game_greedy_pair()
+    print(f"FINAL REWARD for greedy team = {greedy_rew}")
+    return vi_rew, greedy_rew
 
 if __name__ == "__main__":
     test_vi_functionality()
