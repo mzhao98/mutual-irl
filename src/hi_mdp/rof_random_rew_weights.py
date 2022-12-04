@@ -23,7 +23,7 @@ from multiprocessing import Pool, freeze_support
 import sys
 sys.path.insert(1, '../')
 from joint_mdp_long_horz.run_vi_on_full_info_env import compute_optimal_greedy_rew
-
+import pickle
 
 class RingOfFire():
     def __init__(self, robot, human):
@@ -169,17 +169,59 @@ def run_k_rounds(mm_order, seed, num_rounds, vi_type, true_human_order):
     true_human_agent = True_Human_Model(human_weight_vector, true_human_order)
     rof_game = RingOfFire(robot_agent, true_human_agent)
     
+    
+    collective_results = {x: {'rew':[], 'p_opt':[], 'p_greedy':[]} for x in range(num_rounds)}
 
-    collective_scores_percent_opt = {x: [] for x in range(num_rounds)}
+    reward_vals = []
+    percent_opt = []
+    percent_greedy = []
+
     for round in range(num_rounds):
         # print(f"round = {round}")
         rof_game.reset()
         total_rew = rof_game.run_full_game()
         rew_percent_of_opt = total_rew/vi_rew
-        collective_scores_percent_opt[round].append(rew_percent_of_opt)
+        rew_percent_of_greedy = total_rew/greedy_rew
+
+        collective_results[round]['rew'].append(total_rew)
+        collective_results[round]['p_opt'].append(rew_percent_of_opt)
+        collective_results[round]['p_greedy'].append(rew_percent_of_greedy)
+
+        reward_vals.append(total_rew)
+        percent_opt.append(rew_percent_of_opt)
+        percent_greedy.append(rew_percent_of_greedy)
+
+    try:
+        plt.plot(range(num_rounds), reward_vals)
+        plt.xlabel("Round Number")
+        plt.ylabel("Collective Reward")
+        plt.title(f"d={true_human_order-1}, robot mm-{mm_order}, seed-{seed}, vi-{vi_type}: \n Rrew={robot_weight_vector}, Hrew={human_weight_vector}")
+        plt.savefig(f'indiv_trial_images/rewards/"Rrew-{robot_weight_vector}_Hrew-{human_weight_vector}_d-{true_human_order-1}_mm-{mm_order}_vi-{vi_type}.png')
+        plt.close()
+
+        plt.plot(range(num_rounds), percent_opt)
+        plt.xlabel("Round Number")
+        plt.ylabel("Percent of Optimal Reward")
+        plt.title(f"d={true_human_order-1}, robot mm-{mm_order}, seed-{seed}, vi-{vi_type}: \n Rrew={robot_weight_vector}, Hrew={human_weight_vector}")
+        plt.savefig(f'indiv_trial_images/percent_opt/"Rrew-{robot_weight_vector}_Hrew-{human_weight_vector}_d-{true_human_order-1}_mm-{mm_order}_vi-{vi_type}.png')
+        plt.close()
+
+        plt.plot(range(num_rounds), percent_greedy)
+        plt.xlabel("Round Number")
+        plt.ylabel("Percent of Greedy Reward")
+        plt.title(f"d={true_human_order-1}, robot mm-{mm_order}, seed-{seed}, vi-{vi_type}: \n Rrew={robot_weight_vector}, Hrew={human_weight_vector}")
+        plt.savefig(f'indiv_trial_images/percent_greedy/"Rrew-{robot_weight_vector}_Hrew-{human_weight_vector}_d-{true_human_order-1}_mm-{mm_order}_vi-{vi_type}.png')
+        plt.close()
+    except:
+        print("Could not plot individual")
+
 
     # robot_agent.plot_weight_updates(f"exp26_robot_weightupdates_mmorder{mm_order}_{seed}seed.png")
-    return collective_scores_percent_opt
+    
+    with open(f'results/"Rrew-{robot_weight_vector}_Hrew-{human_weight_vector}_d-{true_human_order-1}_mm-{mm_order}_vi-{vi_type}_seed-{seed}.pkl', 'wb') as handle:
+        pickle.dump(collective_results, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    return collective_results
 
 
 def run_experiment(vi_type, n_seeds, true_human_order):
@@ -196,6 +238,11 @@ def run_experiment(vi_type, n_seeds, true_human_order):
     second_results = {x: [] for x in range(num_rounds)}
     both_results = {x: [] for x in range(num_rounds)}
 
+    experiment_results_rel_greedy = {}
+    first_results_rel_greedy = {x: [] for x in range(num_rounds)}
+    second_results_rel_greedy = {x: [] for x in range(num_rounds)}
+    both_results_rel_greedy = {x: [] for x in range(num_rounds)}
+
     with Pool(processes=8) as pool:
         first_order_scores = pool.starmap(run_k_rounds, [('first-only', seed_val, num_rounds, vi_type, true_human_order) for seed_val in list_of_random_seeds])
         second_order_scores = pool.starmap(run_k_rounds, [('second-only', seed_val, num_rounds, vi_type, true_human_order) for seed_val in list_of_random_seeds])
@@ -204,37 +251,67 @@ def run_experiment(vi_type, n_seeds, true_human_order):
 
         for result in first_order_scores:
             for round_no in first_results:
-                first_results[round_no].extend(result[round_no])
+                first_results[round_no].extend(result[round_no]['p_opt'])
 
         for result in second_order_scores:
             for round_no in first_results:
-                second_results[round_no].extend(result[round_no])
+                second_results[round_no].extend(result[round_no]['p_opt'])
 
         for result in both_order_scores:
             for round_no in both_results:
-                both_results[round_no].extend(result[round_no])
+                both_results[round_no].extend(result[round_no]['p_opt'])
+
+        #_rel_greedy
+        for result in first_order_scores:
+            for round_no in first_results:
+                first_results_rel_greedy[round_no].extend(result[round_no]['p_greedy'])
+
+        for result in second_order_scores:
+            for round_no in first_results:
+                second_results_rel_greedy[round_no].extend(result[round_no]['p_greedy'])
+
+        for result in both_order_scores:
+            for round_no in both_results:
+                both_results_rel_greedy[round_no].extend(result[round_no]['p_greedy'])
 
     experiment_results[1] = first_results
     experiment_results[2] = second_results
     experiment_results[3] = both_results
 
-    plot_results(experiment_results, num_rounds, true_human_order, f"images/exp32_percent_true-order-{true_human_order}_{vi_type}-actual_100p_{num_seeds}-seeds.png")
+    experiment_results_rel_greedy[1] = first_results_rel_greedy
+    experiment_results_rel_greedy[2] = second_results_rel_greedy
+    experiment_results_rel_greedy[3] = both_results_rel_greedy
+
+    plot_results(experiment_results, num_rounds, true_human_order, f"images/exp34_percent_opt_true-order-{true_human_order}_{vi_type}-actual_100p_{num_seeds}-seeds.png")
+    plot_results(experiment_results_rel_greedy, num_rounds, true_human_order, f"images/exp34_percent_greedy_true-order-{true_human_order}_{vi_type}-actual_100p_{num_seeds}-seeds.png")
 
     print(f"Model {vi_type}: Results:")
+    print("\nPercent of Optimal")
 
     end_rews = [elem for elem in experiment_results[1][num_rounds-1]]
-    print("First only = ", (np.mean(end_rews), np.std(end_rews)))
+    print("First only (rel opt ) = ", (np.mean(end_rews), np.std(end_rews)))
 
     end_rews = [elem for elem in experiment_results[2][num_rounds - 1]]
-    print("Second only = ", (np.mean(end_rews), np.std(end_rews)))
+    print("Second only (rel opt ) = ", (np.mean(end_rews), np.std(end_rews)))
 
     end_rews = [elem for elem in experiment_results[3][num_rounds - 1]]
-    print("Both = ", (np.mean(end_rews), np.std(end_rews)))
+    print("Both (rel opt ) = ", (np.mean(end_rews), np.std(end_rews)))
+
+    print("\nPercent of Greedy")
+
+    end_rews = [elem for elem in experiment_results_rel_greedy[1][num_rounds-1]]
+    print("First only (rel greedy )= ", (np.mean(end_rews), np.std(end_rews)))
+
+    end_rews = [elem for elem in experiment_results_rel_greedy[2][num_rounds - 1]]
+    print("Second only (rel greedy ) = ", (np.mean(end_rews), np.std(end_rews)))
+
+    end_rews = [elem for elem in experiment_results_rel_greedy[3][num_rounds - 1]]
+    print("Both (rel greedy ) = ", (np.mean(end_rews), np.std(end_rews)))
 
 
 def run_ablation():
-    number_of_seeds = 100
-    true_human_order = 2
+    number_of_seeds = 50
+    true_human_order = 1
     run_experiment(vi_type='mmvi', n_seeds = number_of_seeds, true_human_order=true_human_order)
     run_experiment(vi_type='stdvi', n_seeds = number_of_seeds, true_human_order=true_human_order)
     run_experiment(vi_type='mmvi-nh', n_seeds= number_of_seeds, true_human_order=true_human_order)

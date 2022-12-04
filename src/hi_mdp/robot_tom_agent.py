@@ -11,12 +11,12 @@ RED = 2
 YELLOW = 3
 COLOR_LIST = [BLUE, GREEN, RED, YELLOW]
 
-from hip_mdp_1player_optimized import HiMDP
-# from hip_mdp_1player import HiMDP
+# from hip_mdp_1player_optimized import HiMDP
+from hip_mdp_1player import HiMDP
 from human_hypothesis import Human_Hypothesis
 
 class Robot_Model():
-    def __init__(self, individual_reward, mm_order, vi_type, num_particles=100):
+    def __init__(self, individual_reward, mm_order, vi_type, num_particles=1000):
         self.ind_rew = individual_reward
         self.num_particles = num_particles
         self.team_weights = [1, 1, 1, 1]

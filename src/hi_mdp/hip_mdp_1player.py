@@ -426,7 +426,7 @@ class HiMDP():
                     s11 = self.state_to_idx[tuple(current_state)]
                     joint_reward = r_sa + r_s1aH
                     V_s11 = vf[s11]
-                    Q[s, action_idx] = (self.gamma * V_s11)
+                    Q[s, action_idx] = joint_reward +(self.gamma * V_s11)
 
             elif self.vi_type == 'mmvi-nh':
                 # Add partner rew
@@ -456,7 +456,7 @@ class HiMDP():
                     s11 = self.state_to_idx[tuple(current_state)]
                     joint_reward = r_sa + r_s1aH
                     V_s11 = vf[s11]
-                    Q[s, action_idx] = (self.gamma * V_s11)
+                    Q[s, action_idx] = joint_reward +(self.gamma * V_s11)
 
             else:
                 # Add partner rew

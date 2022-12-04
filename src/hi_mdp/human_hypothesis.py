@@ -11,7 +11,7 @@ YELLOW = 3
 COLOR_LIST = [BLUE, GREEN, RED, YELLOW]
 
 class Human_Hypothesis():
-    def __init__(self, individual_reward, depth, num_particles=100):
+    def __init__(self, individual_reward, depth, num_particles=500):
         self.ind_rew = individual_reward
         self.depth = depth
         self.num_particles = num_particles

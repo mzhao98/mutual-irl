@@ -206,10 +206,14 @@ class Joint_MDP:
         action_pair = []
         valid_actions = self.get_possible_actions(current_state)
 
+        valid_p1_actions = set([elem[0] for elem in valid_actions])
+        valid_p2_actions = set([elem[1] for elem in valid_actions])
+        valid_player_actions = [valid_p1_actions, valid_p2_actions]
+
         for player_idx in range(NUM_PLAYERS):
             max_rew = -1
             best_action_color = NO_MOVE
-            for action_color in ACTION_LIST:
+            for action_color in valid_player_actions[player_idx]:
                 if action_color == NO_MOVE:
                     cand_rew = -1
                 else:
@@ -229,7 +233,7 @@ class Joint_MDP:
 
         action_pair = tuple(action_pair)
         # pdb.set_trace()
-        assert action_pair in valid_actions
+        # assert action_pair in valid_actions
         return action_pair
 
 
