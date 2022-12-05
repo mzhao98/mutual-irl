@@ -16,7 +16,7 @@ from hip_mdp_1player import HiMDP
 from human_hypothesis import Human_Hypothesis
 
 class Robot_Model():
-    def __init__(self, individual_reward, mm_order, vi_type, num_particles=1000):
+    def __init__(self, individual_reward, mm_order, vi_type, num_particles=200):
         self.ind_rew = individual_reward
         self.num_particles = num_particles
         self.team_weights = [1, 1, 1, 1]
@@ -38,10 +38,10 @@ class Robot_Model():
             # possible_hidden_params = {}
             self.param_to_model = {}
             for i in range(int(self.num_particles)):
-                x = random.uniform(-1, 1)
-                y = random.uniform(-1, 1)
-                z = random.uniform(-1, 1)
-                w = random.uniform(-1, 1)
+                x = random.uniform(0, 1)
+                y = random.uniform(0, 1)
+                z = random.uniform(0, 1)
+                w = random.uniform(0, 1)
                 weight_vector = (np.round(x, 2), np.round(y, 2), np.round(z, 2), np.round(w, 2))
 
                 possible_hidden_params[(weight_vector, 1)] = 1 / self.num_particles
@@ -51,10 +51,10 @@ class Robot_Model():
             # possible_hidden_params = {}
             self.param_to_model = {}
             for i in range(int(self.num_particles)):
-                x = random.uniform(-1, 1)
-                y = random.uniform(-1, 1)
-                z = random.uniform(-1, 1)
-                w = random.uniform(-1, 1)
+                x = random.uniform(0, 1)
+                y = random.uniform(0, 1)
+                z = random.uniform(0, 1)
+                w = random.uniform(0, 1)
                 weight_vector = (np.round(x, 2), np.round(y, 2), np.round(z, 2), np.round(w, 2))
 
                 possible_hidden_params[(weight_vector, 2)] = 1 / self.num_particles
@@ -65,20 +65,20 @@ class Robot_Model():
             # possible_hidden_params = {}
             self.param_to_model = {}
             for i in range(int(self.num_particles/2)):
-                x = random.uniform(-1, 1)
-                y = random.uniform(-1, 1)
-                z = random.uniform(-1, 1)
-                w = random.uniform(-1, 1)
+                x = random.uniform(0, 1)
+                y = random.uniform(0, 1)
+                z = random.uniform(0, 1)
+                w = random.uniform(0, 1)
                 weight_vector = (np.round(x, 2), np.round(y, 2), np.round(z, 2), np.round(w, 2))
 
                 possible_hidden_params[(weight_vector, 1)] = 1 / self.num_particles
                 self.param_to_model[(weight_vector, 1)] = Human_Hypothesis(weight_vector, 1)
 
             for i in range(int(self.num_particles / 2)):
-                x = random.uniform(-1, 1)
-                y = random.uniform(-1, 1)
-                z = random.uniform(-1, 1)
-                w = random.uniform(-1, 1)
+                x = random.uniform(0, 1)
+                y = random.uniform(0, 1)
+                z = random.uniform(0, 1)
+                w = random.uniform(0, 1)
                 weight_vector = (np.round(x, 2), np.round(y, 2), np.round(z, 2), np.round(w, 2))
 
                 possible_hidden_params[(weight_vector, 2)] = 1 / self.num_particles

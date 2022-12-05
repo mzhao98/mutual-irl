@@ -149,16 +149,16 @@ def run_k_rounds(mm_order, seed, num_rounds, vi_type, true_human_order):
     print(f"running seed {seed} ")
     np.random.seed(seed)
 
-    x = random.uniform(-1, 1)
-    y = random.uniform(-1, 1)
-    z = random.uniform(-1, 1)
-    w = random.uniform(-1, 1)
+    x = random.uniform(0, 1)
+    y = random.uniform(0, 1)
+    z = random.uniform(0, 1)
+    w = random.uniform(0, 1)
     robot_weight_vector = (np.round(x, 2), np.round(y, 2), np.round(z, 2), np.round(w, 2))
 
-    x = random.uniform(-1, 1)
-    y = random.uniform(-1, 1)
-    z = random.uniform(-1, 1)
-    w = random.uniform(-1, 1)
+    x = random.uniform(0, 1)
+    y = random.uniform(0, 1)
+    z = random.uniform(0, 1)
+    w = random.uniform(0, 1)
     human_weight_vector = (np.round(x, 2), np.round(y, 2), np.round(z, 2), np.round(w, 2))
 
 
@@ -196,21 +196,21 @@ def run_k_rounds(mm_order, seed, num_rounds, vi_type, true_human_order):
         plt.xlabel("Round Number")
         plt.ylabel("Collective Reward")
         plt.title(f"d={true_human_order-1}, robot mm-{mm_order}, seed-{seed}, vi-{vi_type}: \n Rrew={robot_weight_vector}, Hrew={human_weight_vector}")
-        plt.savefig(f'indiv_trial_images/rewards/"Rrew-{robot_weight_vector}_Hrew-{human_weight_vector}_d-{true_human_order-1}_mm-{mm_order}_vi-{vi_type}.png')
+        plt.savefig(f'indiv_trial_images/rewards/"35_Rrew-{robot_weight_vector}_Hrew-{human_weight_vector}_d-{true_human_order-1}_mm-{mm_order}_vi-{vi_type}.png')
         plt.close()
 
         plt.plot(range(num_rounds), percent_opt)
         plt.xlabel("Round Number")
         plt.ylabel("Percent of Optimal Reward")
         plt.title(f"d={true_human_order-1}, robot mm-{mm_order}, seed-{seed}, vi-{vi_type}: \n Rrew={robot_weight_vector}, Hrew={human_weight_vector}")
-        plt.savefig(f'indiv_trial_images/percent_opt/"Rrew-{robot_weight_vector}_Hrew-{human_weight_vector}_d-{true_human_order-1}_mm-{mm_order}_vi-{vi_type}.png')
+        plt.savefig(f'indiv_trial_images/percent_opt/"35_Rrew-{robot_weight_vector}_Hrew-{human_weight_vector}_d-{true_human_order-1}_mm-{mm_order}_vi-{vi_type}.png')
         plt.close()
 
         plt.plot(range(num_rounds), percent_greedy)
         plt.xlabel("Round Number")
         plt.ylabel("Percent of Greedy Reward")
         plt.title(f"d={true_human_order-1}, robot mm-{mm_order}, seed-{seed}, vi-{vi_type}: \n Rrew={robot_weight_vector}, Hrew={human_weight_vector}")
-        plt.savefig(f'indiv_trial_images/percent_greedy/"Rrew-{robot_weight_vector}_Hrew-{human_weight_vector}_d-{true_human_order-1}_mm-{mm_order}_vi-{vi_type}.png')
+        plt.savefig(f'indiv_trial_images/percent_greedy/"35_Rrew-{robot_weight_vector}_Hrew-{human_weight_vector}_d-{true_human_order-1}_mm-{mm_order}_vi-{vi_type}.png')
         plt.close()
     except:
         print("Could not plot individual")
@@ -218,7 +218,7 @@ def run_k_rounds(mm_order, seed, num_rounds, vi_type, true_human_order):
 
     # robot_agent.plot_weight_updates(f"exp26_robot_weightupdates_mmorder{mm_order}_{seed}seed.png")
     
-    with open(f'results/"Rrew-{robot_weight_vector}_Hrew-{human_weight_vector}_d-{true_human_order-1}_mm-{mm_order}_vi-{vi_type}_seed-{seed}.pkl', 'wb') as handle:
+    with open(f'results/"35_Rrew-{robot_weight_vector}_Hrew-{human_weight_vector}_d-{true_human_order-1}_mm-{mm_order}_vi-{vi_type}_seed-{seed}.pkl', 'wb') as handle:
         pickle.dump(collective_results, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     return collective_results
@@ -282,8 +282,8 @@ def run_experiment(vi_type, n_seeds, true_human_order):
     experiment_results_rel_greedy[2] = second_results_rel_greedy
     experiment_results_rel_greedy[3] = both_results_rel_greedy
 
-    plot_results(experiment_results, num_rounds, true_human_order, f"images/exp34_percent_opt_true-order-{true_human_order}_{vi_type}-actual_100p_{num_seeds}-seeds.png")
-    plot_results(experiment_results_rel_greedy, num_rounds, true_human_order, f"images/exp34_percent_greedy_true-order-{true_human_order}_{vi_type}-actual_100p_{num_seeds}-seeds.png")
+    plot_results(experiment_results, num_rounds, true_human_order, f"images/exp35_percent_opt_true-order-{true_human_order}_{vi_type}-actual_100p_{num_seeds}-seeds.png")
+    plot_results(experiment_results_rel_greedy, num_rounds, true_human_order, f"images/exp35_percent_greedy_true-order-{true_human_order}_{vi_type}-actual_100p_{num_seeds}-seeds.png")
 
     print(f"Model {vi_type}: Results:")
     print("\nPercent of Optimal")
@@ -310,8 +310,8 @@ def run_experiment(vi_type, n_seeds, true_human_order):
 
 
 def run_ablation():
-    number_of_seeds = 50
-    true_human_order = 1
+    number_of_seeds = 10
+    true_human_order = 2
     run_experiment(vi_type='mmvi', n_seeds = number_of_seeds, true_human_order=true_human_order)
     run_experiment(vi_type='stdvi', n_seeds = number_of_seeds, true_human_order=true_human_order)
     run_experiment(vi_type='mmvi-nh', n_seeds= number_of_seeds, true_human_order=true_human_order)
