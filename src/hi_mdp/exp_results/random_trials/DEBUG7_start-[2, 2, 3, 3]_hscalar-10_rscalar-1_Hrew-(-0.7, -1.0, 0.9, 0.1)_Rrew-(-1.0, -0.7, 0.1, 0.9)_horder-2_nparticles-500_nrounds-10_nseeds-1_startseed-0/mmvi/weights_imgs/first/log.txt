@@ -1,0 +1,480 @@
+
+ROUND = 0
+
+
+Current state = [2, 2, 3, 3]
+Robot's top human model = ((-1.0, -0.7, 0.1, 0.9), 0, 0.041666666666666664)
+Robot's own rewards + human pref = [-2.  -1.4  0.2  1.8]
+Robot's confidence = 0.041666666666666664
+True human's confidence = 0.041666666666666664, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.0
+True human's belief of robot = ((-0.7, -1.0, 0.1, 0.9), 0.0, False)
+Robot's weighted accuracy = 0.0
+robot yellow, human red --> [2, 2, 2, 2]
+
+Current state = [2, 2, 2, 2]
+True human's confidence = 0.09595778632812578, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.09595778632812578
+True human's belief of robot = ((-0.7, -1.0, 0.1, 0.9), 0.09595778632812578, False)
+Robot's weighted accuracy = 0.09500000000000001
+robot yellow, human red --> [2, 2, 1, 1]
+
+Current state = [2, 2, 1, 1]
+True human's confidence = 0.12253799920060127, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, None]
+True human's accuracy on robot = 0.12253799920060127
+True human's belief of robot = ((-0.7, -1.0, 0.1, 0.9), 0.12253799920060127, False)
+Robot's weighted accuracy = 0.12251131221719458
+robot yellow, human red --> [2, 2, 0, 0]
+
+Current state = [2, 2, 0, 0]
+True human's confidence = 0.13912139061580522, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, None, None]
+True human's accuracy on robot = 0.0
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.0, False)
+Robot's weighted accuracy = 0.0
+robot green, human blue --> [1, 1, 0, 0]
+
+Current state = [1, 1, 0, 0]
+True human's confidence = 0.2782448554056974, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, None, None, None]
+True human's accuracy on robot = 0.2782448554056974
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.2782448554056974, False)
+Robot's weighted accuracy = 0.28734830258213306
+No need to update robot beliefs
+robot green, human blue --> [0, 0, 0, 0]
+final_reward = 2.6
+
+ROUND = 1
+
+
+Current state = [2, 2, 3, 3]
+Robot's top human model = ((-0.7, -1.0, 0.9, 0.1), 0, 0.28734830258213306)
+Robot's own rewards + human pref = [-1.7 -1.7  1.   1. ]
+Robot's confidence = 0.28734830258213306
+True human's confidence = 0.3115750434218546, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.3115750434218546
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.3115750434218546, False)
+Robot's weighted accuracy = 0.28734830258213306
+robot yellow, human red --> [2, 2, 2, 2]
+
+Current state = [2, 2, 2, 2]
+True human's confidence = 0.3361084976010713, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.3361084976010713
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.3361084976010713, False)
+Robot's weighted accuracy = 0.313722626906341
+robot yellow, human red --> [2, 2, 1, 1]
+
+Current state = [2, 2, 1, 1]
+True human's confidence = 0.3517243524540485, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, None]
+True human's accuracy on robot = 0.3517243524540485
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.3517243524540485, False)
+Robot's weighted accuracy = 0.33073762844594834
+robot yellow, human red --> [2, 2, 0, 0]
+
+Current state = [2, 2, 0, 0]
+True human's confidence = 0.3613740313471394, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, None, None]
+True human's accuracy on robot = 0.3613740313471394
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.3613740313471394, False)
+Robot's weighted accuracy = 0.40692633667176276
+robot green, human blue --> [1, 1, 0, 0]
+
+Current state = [1, 1, 0, 0]
+True human's confidence = 0.38545913184178704, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, None, None, None]
+True human's accuracy on robot = 0.38545913184178704
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.38545913184178704, False)
+Robot's weighted accuracy = 0.43202044047253435
+No need to update robot beliefs
+robot green, human blue --> [0, 0, 0, 0]
+final_reward = 2.6
+
+ROUND = 2
+
+
+Current state = [2, 2, 3, 3]
+Robot's top human model = ((-0.7, -1.0, 0.9, 0.1), 0, 0.43202044047253435)
+Robot's own rewards + human pref = [-1.7 -1.7  1.   1. ]
+Robot's confidence = 0.43202044047253435
+True human's confidence = 0.4033663004750338, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.4033663004750338
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4033663004750338, False)
+Robot's weighted accuracy = 0.43202044047253435
+robot yellow, human red --> [2, 2, 2, 2]
+
+Current state = [2, 2, 2, 2]
+True human's confidence = 0.4100754730135504, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.4100754730135504
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4100754730135504, False)
+Robot's weighted accuracy = 0.44324286376088523
+robot yellow, human red --> [2, 2, 1, 1]
+
+Current state = [2, 2, 1, 1]
+True human's confidence = 0.41406108963937455, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, None]
+True human's accuracy on robot = 0.41406108963937455
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.41406108963937455, False)
+Robot's weighted accuracy = 0.4500051252786277
+robot yellow, human red --> [2, 2, 0, 0]
+
+Current state = [2, 2, 0, 0]
+True human's confidence = 0.41640423409581934, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, None, None]
+True human's accuracy on robot = 0.41640423409581934
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.41640423409581934, False)
+Robot's weighted accuracy = 0.5318415681225713
+robot green, human blue --> [1, 1, 0, 0]
+
+Current state = [1, 1, 0, 0]
+True human's confidence = 0.4314936717148878, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, None, None, None]
+True human's accuracy on robot = 0.4314936717148878
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4314936717148878, False)
+Robot's weighted accuracy = 0.5212278312249551
+No need to update robot beliefs
+robot green, human blue --> [0, 0, 0, 0]
+final_reward = 2.6
+
+ROUND = 3
+
+
+Current state = [2, 2, 3, 3]
+Robot's top human model = ((-0.7, -1.0, 0.9, 0.1), 0, 0.5212278312249551)
+Robot's own rewards + human pref = [-1.7 -1.7  1.   1. ]
+Robot's confidence = 0.5212278312249551
+True human's confidence = 0.4439663086772785, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.4439663086772785
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4439663086772785, False)
+Robot's weighted accuracy = 0.5212278312249551
+robot yellow, human red --> [2, 2, 2, 2]
+
+Current state = [2, 2, 2, 2]
+True human's confidence = 0.4454354211294956, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.4454354211294956
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4454354211294956, False)
+Robot's weighted accuracy = 0.5251999352388395
+robot yellow, human red --> [2, 2, 1, 1]
+
+Current state = [2, 2, 1, 1]
+True human's confidence = 0.4462908199054048, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, None]
+True human's accuracy on robot = 0.4462908199054048
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4462908199054048, False)
+Robot's weighted accuracy = 0.5275273228199201
+robot yellow, human red --> [2, 2, 0, 0]
+
+Current state = [2, 2, 0, 0]
+True human's confidence = 0.4467879758937178, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, None, None]
+True human's accuracy on robot = 0.4467879758937178
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4467879758937178, False)
+Robot's weighted accuracy = 0.60705509756004
+robot green, human blue --> [1, 1, 0, 0]
+
+Current state = [1, 1, 0, 0]
+True human's confidence = 0.4571379459220902, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, None, None, None]
+True human's accuracy on robot = 0.4571379459220902
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4571379459220902, False)
+Robot's weighted accuracy = 0.5874796799915452
+No need to update robot beliefs
+robot green, human blue --> [0, 0, 0, 0]
+final_reward = 2.6
+
+ROUND = 4
+
+
+Current state = [2, 2, 3, 3]
+Robot's top human model = ((-0.7, -1.0, 0.9, 0.1), 0, 0.5874796799915452)
+Robot's own rewards + human pref = [-1.7 -1.7  1.   1. ]
+Robot's confidence = 0.5874796799915452
+True human's confidence = 0.465610415730792, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.465610415730792
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.465610415730792, False)
+Robot's weighted accuracy = 0.5874796799915452
+robot yellow, human red --> [2, 2, 2, 2]
+
+Current state = [2, 2, 2, 2]
+True human's confidence = 0.4659094089107768, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.4659094089107768
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4659094089107768, False)
+Robot's weighted accuracy = 0.5888295259520832
+robot yellow, human red --> [2, 2, 1, 1]
+
+Current state = [2, 2, 1, 1]
+True human's confidence = 0.4660831247267924, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, None]
+True human's accuracy on robot = 0.4660831247267924
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4660831247267924, False)
+Robot's weighted accuracy = 0.5896138543284419
+robot yellow, human red --> [2, 2, 0, 0]
+
+Current state = [2, 2, 0, 0]
+True human's confidence = 0.4661841968642659, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, None, None]
+True human's accuracy on robot = 0.4661841968642659
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4661841968642659, False)
+Robot's weighted accuracy = 0.6644749568226013
+robot green, human blue --> [1, 1, 0, 0]
+
+Current state = [1, 1, 0, 0]
+True human's confidence = 0.4730741261059916, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, None, None, None]
+True human's accuracy on robot = 0.4730741261059916
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4730741261059916, False)
+Robot's weighted accuracy = 0.6423955054163883
+No need to update robot beliefs
+robot green, human blue --> [0, 0, 0, 0]
+final_reward = 2.6
+
+ROUND = 5
+
+
+Current state = [2, 2, 3, 3]
+Robot's top human model = ((-0.7, -1.0, 0.9, 0.1), 0, 0.6423955054163883)
+Robot's own rewards + human pref = [-1.7 -1.7  1.   1. ]
+Robot's confidence = 0.6423955054163883
+True human's confidence = 0.4786379601657266, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.4786379601657266
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4786379601657266, False)
+Robot's weighted accuracy = 0.6423955054163883
+robot yellow, human red --> [2, 2, 2, 2]
+
+Current state = [2, 2, 2, 2]
+True human's confidence = 0.47869708729125, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.47869708729125
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.47869708729125, False)
+Robot's weighted accuracy = 0.6428500051718793
+robot yellow, human red --> [2, 2, 1, 1]
+
+Current state = [2, 2, 1, 1]
+True human's confidence = 0.4787317837280432, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, None]
+True human's accuracy on robot = 0.4787317837280432
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4787317837280432, False)
+Robot's weighted accuracy = 0.6431134306756208
+robot yellow, human red --> [2, 2, 0, 0]
+
+Current state = [2, 2, 0, 0]
+True human's confidence = 0.47875232572380344, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, None, None]
+True human's accuracy on robot = 0.47875232572380344
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.47875232572380344, False)
+Robot's weighted accuracy = 0.7122359794680402
+robot green, human blue --> [1, 1, 0, 0]
+
+Current state = [1, 1, 0, 0]
+True human's confidence = 0.483221368260242, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, None, None, None]
+True human's accuracy on robot = 0.483221368260242
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.483221368260242, False)
+Robot's weighted accuracy = 0.6896650599192221
+No need to update robot beliefs
+robot green, human blue --> [0, 0, 0, 0]
+final_reward = 2.6
+
+ROUND = 6
+
+
+Current state = [2, 2, 3, 3]
+Robot's top human model = ((-0.7, -1.0, 0.9, 0.1), 0, 0.6896650599192221)
+Robot's own rewards + human pref = [-1.7 -1.7  1.   1. ]
+Robot's confidence = 0.6896650599192221
+True human's confidence = 0.4867978959167863, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.4867978959167863
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4867978959167863, False)
+Robot's weighted accuracy = 0.6896650599192221
+robot yellow, human red --> [2, 2, 2, 2]
+
+Current state = [2, 2, 2, 2]
+True human's confidence = 0.48680937972138344, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.48680937972138344
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.48680937972138344, False)
+Robot's weighted accuracy = 0.6898168537362748
+robot yellow, human red --> [2, 2, 1, 1]
+
+Current state = [2, 2, 1, 1]
+True human's confidence = 0.4868165002440446, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, None]
+True human's accuracy on robot = 0.4868165002440446
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4868165002440446, False)
+Robot's weighted accuracy = 0.6899047649116078
+robot yellow, human red --> [2, 2, 0, 0]
+
+Current state = [2, 2, 0, 0]
+True human's confidence = 0.4868210826166785, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, None, None]
+True human's accuracy on robot = 0.4868210826166785
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4868210826166785, False)
+Robot's weighted accuracy = 0.7528572238393071
+robot green, human blue --> [1, 1, 0, 0]
+
+Current state = [1, 1, 0, 0]
+True human's confidence = 0.4896729418704159, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, None, None, None]
+True human's accuracy on robot = 0.4896729418704159
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4896729418704159, False)
+Robot's weighted accuracy = 0.7307659855951303
+No need to update robot beliefs
+robot green, human blue --> [0, 0, 0, 0]
+final_reward = 2.6
+
+ROUND = 7
+
+
+Current state = [2, 2, 3, 3]
+Robot's top human model = ((-0.7, -1.0, 0.9, 0.1), 0, 0.7307659855951303)
+Robot's own rewards + human pref = [-1.7 -1.7  1.   1. ]
+Robot's confidence = 0.7307659855951303
+True human's confidence = 0.4919434963236828, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.4919434963236828
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4919434963236828, False)
+Robot's weighted accuracy = 0.7307659855951303
+robot yellow, human red --> [2, 2, 2, 2]
+
+Current state = [2, 2, 2, 2]
+True human's confidence = 0.4919456503164659, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.4919456503164659
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4919456503164659, False)
+Robot's weighted accuracy = 0.7308161512320631
+robot yellow, human red --> [2, 2, 1, 1]
+
+Current state = [2, 2, 1, 1]
+True human's confidence = 0.49194737796296073, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, None]
+True human's accuracy on robot = 0.49194737796296073
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.49194737796296073, False)
+Robot's weighted accuracy = 0.7308451976437216
+robot yellow, human red --> [2, 2, 0, 0]
+
+Current state = [2, 2, 0, 0]
+True human's confidence = 0.49194884289075386, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, None, None]
+True human's accuracy on robot = 0.49194884289075386
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.49194884289075386, False)
+Robot's weighted accuracy = 0.7876017398947711
+robot green, human blue --> [1, 1, 0, 0]
+
+Current state = [1, 1, 0, 0]
+True human's confidence = 0.49375208132431575, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, None, None, None]
+True human's accuracy on robot = 0.49375208132431575
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.49375208132431575, False)
+Robot's weighted accuracy = 0.7665792470538378
+No need to update robot beliefs
+robot green, human blue --> [0, 0, 0, 0]
+final_reward = 2.6
+
+ROUND = 8
+
+
+Current state = [2, 2, 3, 3]
+Robot's top human model = ((-0.7, -1.0, 0.9, 0.1), 0, 0.7665792470538378)
+Robot's own rewards + human pref = [-1.7 -1.7  1.   1. ]
+Robot's confidence = 0.7665792470538378
+True human's confidence = 0.49518452671641877, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.49518452671641877
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.49518452671641877, False)
+Robot's weighted accuracy = 0.7665792470538378
+robot yellow, human red --> [2, 2, 2, 2]
+
+Current state = [2, 2, 2, 2]
+True human's confidence = 0.4951848644863727, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.4951848644863727
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4951848644863727, False)
+Robot's weighted accuracy = 0.7665956356403795
+robot yellow, human red --> [2, 2, 1, 1]
+
+Current state = [2, 2, 1, 1]
+True human's confidence = 0.4951855462638269, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, None]
+True human's accuracy on robot = 0.4951855462638269
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4951855462638269, False)
+Robot's weighted accuracy = 0.766605124089716
+robot yellow, human red --> [2, 2, 0, 0]
+
+Current state = [2, 2, 0, 0]
+True human's confidence = 0.4951864087406213, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, None, None]
+True human's accuracy on robot = 0.4951864087406213
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4951864087406213, False)
+Robot's weighted accuracy = 0.8173850126694489
+robot green, human blue --> [1, 1, 0, 0]
+
+Current state = [1, 1, 0, 0]
+True human's confidence = 0.4963221968368266, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, None, None, None]
+True human's accuracy on robot = 0.4963221968368266
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4963221968368266, False)
+Robot's weighted accuracy = 0.7977913629276222
+No need to update robot beliefs
+robot green, human blue --> [0, 0, 0, 0]
+final_reward = 2.6
+
+ROUND = 9
+
+
+Current state = [2, 2, 3, 3]
+Robot's top human model = ((-0.7, -1.0, 0.9, 0.1), 0, 0.7977913629276222)
+Robot's own rewards + human pref = [-1.7 -1.7  1.   1. ]
+Robot's confidence = 0.7977913629276222
+True human's confidence = 0.49722461391872125, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.49722461391872125
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.49722461391872125, False)
+Robot's weighted accuracy = 0.7977913629276222
+robot yellow, human red --> [2, 2, 2, 2]
+
+Current state = [2, 2, 2, 2]
+True human's confidence = 0.49722459785615314, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, 0.1]
+True human's accuracy on robot = 0.49722459785615314
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.49722459785615314, False)
+Robot's weighted accuracy = 0.7977966569773963
+robot yellow, human red --> [2, 2, 1, 1]
+
+Current state = [2, 2, 1, 1]
+True human's confidence = 0.49722507834154495, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, 0.9, None]
+True human's accuracy on robot = 0.49722507834154495
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.49722507834154495, False)
+Robot's weighted accuracy = 0.7977997219856957
+robot yellow, human red --> [2, 2, 0, 0]
+
+Current state = [2, 2, 0, 0]
+True human's confidence = 0.49722582620659367, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, -1.0, None, None]
+True human's accuracy on robot = 0.49722582620659367
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.49722582620659367, False)
+Robot's weighted accuracy = 0.8429581047393024
+robot green, human blue --> [1, 1, 0, 0]
+
+Current state = [1, 1, 0, 0]
+True human's confidence = 0.4979416542262186, confidence scalar = 0.0
+True human's acting weight vector = [-0.7, None, None, None]
+True human's accuracy on robot = 0.4979416542262186
+True human's belief of robot = ((-1.0, 0.1, -0.7, 0.9), 0.4979416542262186, False)
+Robot's weighted accuracy = 0.8249880864786078
+No need to update robot beliefs
+robot green, human blue --> [0, 0, 0, 0]
+final_reward = 2.6

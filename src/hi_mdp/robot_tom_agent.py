@@ -4,6 +4,7 @@ import numpy as np
 import operator
 import random
 import matplotlib.pyplot as plt
+import itertools
 
 BLUE = 0
 GREEN = 1
@@ -16,74 +17,129 @@ from hip_mdp_1player import HiMDP
 from human_hypothesis import Human_Hypothesis
 
 class Robot_Model():
-    def __init__(self, individual_reward, mm_order, vi_type, num_particles=200):
+    def __init__(self, individual_reward, mm_order, vi_type, num_particles, h_scalar, r_scalar, log_filename):
         self.ind_rew = individual_reward
         self.num_particles = num_particles
         self.team_weights = [1, 1, 1, 1]
+        # self.corpus =[-0.9, -0.5, 0.5, 1.0] # [1, 1, 1.1, 3]  #
+        self.corpus = list(individual_reward)
         self.mm_order = mm_order
-        self.sample_hidden_parameters()
+
         self.num_particles = num_particles
         self.vi_type = vi_type
+        self.h_scalar = h_scalar
+        self.r_scalar = r_scalar
 
+        self.log_filename = log_filename
+
+        self.sample_hidden_permutes()
         self.pf_history = []
-        self.pf_history.append(self.get_K_weighted_combination_belief(self.beliefs))
+        self.pf_history.append(self.get_K_weighted_combination_belief(self.beliefs, 0, k=1))
 
+        self.human_ground_truth_history = []
+        self.inferred_human_beliefs_of_robot = []
+
+    def sample_hidden_permutes(self):
+        possible_hidden_params = {}
+
+        if self.mm_order == 'first':
+            # possible_hidden_params = {}
+            self.param_to_model = {}
+            possible_weights = {}
+            permutes = list(itertools.permutations(self.corpus))
+            for vec in permutes:
+                possible_hidden_params[(vec, 1)] = 1 / len(permutes)
+                self.param_to_model[(vec, 1)] = Human_Hypothesis(vec, 1, len(permutes), r_scalar=self.r_scalar)
+
+
+
+        elif self.mm_order == 'second':
+            # possible_hidden_params = {}
+            self.param_to_model = {}
+            possible_weights = {}
+            permutes = list(itertools.permutations(self.corpus))
+            for vec in permutes:
+                possible_hidden_params[(vec, 2)] = 1 / len(permutes)
+                self.param_to_model[(vec, 2)] = Human_Hypothesis(vec, 2, len(permutes), r_scalar=self.r_scalar)
+
+
+        else:
+            # possible_hidden_params = {}
+            self.param_to_model = {}
+            possible_weights = {}
+            permutes = list(itertools.permutations(self.corpus))
+            for vec in permutes:
+                possible_hidden_params[(vec, 1)] = 1 / (len(permutes)*2)
+                self.param_to_model[(vec, 1)] = Human_Hypothesis(vec, 1, len(permutes), r_scalar=self.r_scalar)
+
+            possible_weights = {}
+            permutes = list(itertools.permutations(self.corpus))
+            for vec in permutes:
+                possible_hidden_params[(vec, 2)] = 1 / (len(permutes)*2)
+                self.param_to_model[(vec, 2)] = Human_Hypothesis(vec, 2, len(permutes), r_scalar=self.r_scalar)
+
+        self.beliefs = possible_hidden_params
 
 
     def sample_hidden_parameters(self):
 
         possible_hidden_params = {}
 
-        if self.mm_order == 'first-only':
+        if self.mm_order == 'first':
             # possible_hidden_params = {}
             self.param_to_model = {}
-            for i in range(int(self.num_particles)):
-                x = random.uniform(0, 1)
-                y = random.uniform(0, 1)
-                z = random.uniform(0, 1)
-                w = random.uniform(0, 1)
-                weight_vector = (np.round(x, 2), np.round(y, 2), np.round(z, 2), np.round(w, 2))
+            for i in range(int(self.num_particles-1)):
+                x = random.uniform(-1, 1)
+                y = random.uniform(-1, 1)
+                z = random.uniform(-1, 1)
+                w = random.uniform(-1, 1)
+                weight_vector = (np.round(x, 1), np.round(y, 1), np.round(z, 1), np.round(w, 1))
 
-                possible_hidden_params[(weight_vector, 1)] = 1 / self.num_particles
-                self.param_to_model[(weight_vector, 1)] = Human_Hypothesis(weight_vector, 1)
+                possible_hidden_params[(weight_vector, 1)] = 1 / self.num_particles-1
+                self.param_to_model[(weight_vector, 1)] = Human_Hypothesis(weight_vector, 1, self.num_particles)
 
-        elif self.mm_order == 'second-only':
+
+
+        elif self.mm_order == 'second':
             # possible_hidden_params = {}
             self.param_to_model = {}
-            for i in range(int(self.num_particles)):
-                x = random.uniform(0, 1)
-                y = random.uniform(0, 1)
-                z = random.uniform(0, 1)
-                w = random.uniform(0, 1)
-                weight_vector = (np.round(x, 2), np.round(y, 2), np.round(z, 2), np.round(w, 2))
+            for i in range(int(self.num_particles-1)):
+                x = random.uniform(-1, 1)
+                y = random.uniform(-1, 1)
+                z = random.uniform(-1, 1)
+                w = random.uniform(-1, 1)
+                weight_vector = (np.round(x, 1), np.round(y, 1), np.round(z, 1), np.round(w, 1))
 
-                possible_hidden_params[(weight_vector, 2)] = 1 / self.num_particles
-                self.param_to_model[(weight_vector, 2)] = Human_Hypothesis(weight_vector, 2)
+                possible_hidden_params[(weight_vector, 2)] = 1 / self.num_particles-1
+                self.param_to_model[(weight_vector, 2)] = Human_Hypothesis(weight_vector, 2, self.num_particles)
 
 
         else:
             # possible_hidden_params = {}
             self.param_to_model = {}
-            for i in range(int(self.num_particles/2)):
-                x = random.uniform(0, 1)
-                y = random.uniform(0, 1)
-                z = random.uniform(0, 1)
-                w = random.uniform(0, 1)
-                weight_vector = (np.round(x, 2), np.round(y, 2), np.round(z, 2), np.round(w, 2))
+            for i in range(int(self.num_particles)):
+                x = random.uniform(-1, 1)
+                y = random.uniform(-1, 1)
+                z = random.uniform(-1, 1)
+                w = random.uniform(-1, 1)
+                weight_vector = (np.round(x, 1), np.round(y, 1), np.round(z, 1), np.round(w, 1))
 
-                possible_hidden_params[(weight_vector, 1)] = 1 / self.num_particles
-                self.param_to_model[(weight_vector, 1)] = Human_Hypothesis(weight_vector, 1)
+                possible_hidden_params[(weight_vector, 1)] = 1 / (self.num_particles * 2-1)
+                self.param_to_model[(weight_vector, 1)] = Human_Hypothesis(weight_vector, 1, self.num_particles)
 
-            for i in range(int(self.num_particles / 2)):
-                x = random.uniform(0, 1)
-                y = random.uniform(0, 1)
-                z = random.uniform(0, 1)
-                w = random.uniform(0, 1)
-                weight_vector = (np.round(x, 2), np.round(y, 2), np.round(z, 2), np.round(w, 2))
+            for i in range(int(self.num_particles)):
+                x = random.uniform(-1, 1)
+                y = random.uniform(-1, 1)
+                z = random.uniform(-1, 1)
+                w = random.uniform(-1, 1)
+                weight_vector = (np.round(x, 1), np.round(y, 1), np.round(z, 1), np.round(w, 1))
 
-                possible_hidden_params[(weight_vector, 2)] = 1 / self.num_particles
-                self.param_to_model[(weight_vector, 2)] = Human_Hypothesis(weight_vector, 2)
+                possible_hidden_params[(weight_vector, 2)] = 1 / (self.num_particles * 2-1)
+                self.param_to_model[(weight_vector, 2)] = Human_Hypothesis(weight_vector, 2, self.num_particles)
 
+        true = (0.9, 0.1, -0.9, 0.2)
+        possible_hidden_params[(true, 2)] = 1 / self.num_particles
+        self.param_to_model[(true, 2)] = Human_Hypothesis(true, 2, self.num_particles)
         self.beliefs = possible_hidden_params
 
 
@@ -91,7 +147,7 @@ class Robot_Model():
     def update_particle_weights(self, human_state, human_action):
         # robot_state = [# blue, # green, # red, # yellow]
         # robot action = color
-        epsilon = 0.001
+        epsilon = 0.01
         total_weight = 0
 
         prob_action_given_state_numer = human_state[human_action]
@@ -99,24 +155,37 @@ class Robot_Model():
         prob_action_given_state_denom = sum(human_state)
 
         prob_action_given_state = prob_action_given_state_numer / prob_action_given_state_denom
+
+        if abs(prob_action_given_state - 1) < epsilon:
+            with open(self.log_filename, 'a') as f:
+                f.write(f"\nNo need to update robot beliefs")
+            return
         # print("prob_action_given_state", prob_action_given_state)
+        # print("human_state, human_action", (human_state, human_action))
 
         for human_model_params in self.beliefs:
+            depth = human_model_params[1]
             human_model = self.param_to_model[human_model_params]
-            weight_vector = human_model.get_proba_vector_given_state(human_state)
+            # human_model_depth = human_model.depth
+            weight_vector, _ = human_model.get_proba_vector_given_state(human_state)
+            # print("weight_vector", weight_vector)
 
             prob_theta = self.beliefs[human_model_params]
             # weight_vector = (rew blue, rew green, rew red, rew yellow) tuple
             # weight 0f particle self.beliefs[weight_vector]
-            weight_vector_normed_positive = [e - min(weight_vector) + epsilon for e in weight_vector]
-            weight_vector_normed_positive = [e / (sum(weight_vector_normed_positive)) for e in
+            weight_vector_normed_positive = [(e - min(weight_vector) + epsilon if e - min(weight_vector) == 0
+                                              else e - min(weight_vector)) for e in weight_vector]
+            weight_vector_normed_positive = [np.round(e / (sum(weight_vector_normed_positive)),2) for e in
                                              weight_vector_normed_positive]
 
             restructured_weight_vector = []
 
             for color in COLOR_LIST:
                 if human_state[color] > 0:
-                    restructured_weight_vector.append(weight_vector_normed_positive[color])
+                    if weight_vector_normed_positive[color] == 0:
+                        restructured_weight_vector.append(0.01)
+                    else:
+                        restructured_weight_vector.append(weight_vector_normed_positive[color])
                 else:
                     restructured_weight_vector.append(0)
 
@@ -125,12 +194,94 @@ class Robot_Model():
                 restructured_weight_vector[color] = restructured_weight_vector[color] / (sum_weight_values + epsilon)
 
             prob_action_given_theta_state = restructured_weight_vector[human_action]
+            # if prob_action_given_theta_state == 0:
+            #     prob_action_given_theta_state = 0.1
+            # if self.mm_order == 'both' and depth == 2:
+            # # prob_action_given_theta_state = np.exp(prob_action_given_theta_state)
+            # if abs(prob_action_given_theta_state - max(restructured_weight_vector)) < 0.02:
+            #     prob_action_given_theta_state = 0.8
+            # else:
+            #     prob_action_given_theta_state = 0.2
+            #
+            # if prob_action_given_theta_state < 0.1:
+            #     prob_action_given_theta_state = 0.1
+            # else:
+            #     prob_action_given_theta_state = 0.1
+            # print("prob_action_given_theta_state", prob_action_given_theta_state)
             posterior = (prob_theta * prob_action_given_theta_state) / (prob_action_given_state + epsilon)
+
             self.beliefs[human_model_params] = posterior
             total_weight += posterior
 
+        # print("total_weight", total_weight)
         for human_model_params in self.beliefs:
-            self.beliefs[human_model_params] /= (total_weight + epsilon)
+            self.beliefs[human_model_params] = self.beliefs[human_model_params]/total_weight
+
+
+
+    def get_percent_particles_w_correct_prediction(self, human_state, human_action):
+        total_weighted_accuracy = 0.0
+        epsilon = 0.01
+        # print("self.beliefs MAX values", max(self.beliefs.values()))
+
+
+        top_1 = dict(sorted(self.beliefs.items(), key=operator.itemgetter(1), reverse=True)[:1])
+
+        for human_model_params in top_1:
+            depth = human_model_params[1]
+            human_model = self.param_to_model[human_model_params]
+            weight_vector, robot_rew = human_model.get_proba_vector_given_state(human_state)
+            # print("Regular weight_vector", weight_vector)
+            # print("robot_rew", robot_rew)
+            # if depth == 2:
+            #     weight_vector = [elem * 2 for elem in weight_vector]
+
+            prob_theta = self.beliefs[human_model_params]
+            # print("prob_theta", prob_theta)
+            # weight_vector = (rew blue, rew green, rew red, rew yellow) tuple
+            # weight 0f particle self.beliefs[weight_vector]
+            weight_vector_normed_positive = [e - min(weight_vector) + epsilon for e in weight_vector]
+            weight_vector_normed_positive = [np.round(e / (sum(weight_vector_normed_positive)),2) for e in
+                                             weight_vector_normed_positive]
+
+
+
+            restructured_weight_vector = []
+
+            for color in COLOR_LIST:
+                if human_state[color] > 0:
+                    if weight_vector_normed_positive[color] == 0:
+                        restructured_weight_vector.append(0.01)
+                    else:
+                        restructured_weight_vector.append(weight_vector_normed_positive[color])
+                else:
+                    restructured_weight_vector.append(0)
+
+            sum_weight_values = sum(restructured_weight_vector)
+            for color in COLOR_LIST:
+                restructured_weight_vector[color] = restructured_weight_vector[color] / (sum_weight_values + epsilon)
+
+            # print("restructured_weight_vector", restructured_weight_vector)
+            prob_action_given_theta_state = restructured_weight_vector[human_action]
+
+            # print(f"\nweight_vector = {weight_vector}, restructured_weight_vector={restructured_weight_vector}")
+            # print(f"human_action = {human_action}, argmax = {np.argmax(restructured_weight_vector)}")
+            if abs(prob_action_given_theta_state - max(restructured_weight_vector)) < 0.02:
+                accuracy = 1.0
+            else:
+                accuracy = 0.0
+
+            # print(f"predicted = {prob_action_given_theta_state}, true = {max(restructured_weight_vector)}, acc = {accuracy}")
+
+            # weighted_accuracy = accuracy * prob_theta
+            weighted_accuracy = accuracy * prob_theta
+            total_weighted_accuracy = weighted_accuracy
+        # print("total_weighted_accuracy = ", total_weighted_accuracy)
+        with open(self.log_filename, 'a') as f:
+            f.write(f"\nRobot's weighted accuracy = {total_weighted_accuracy}")
+
+        return total_weighted_accuracy
+
 
     def resample_particles(self):
         possible_weights = {}
@@ -144,24 +295,24 @@ class Robot_Model():
         # print("population_weights", population_weights)
         # print("population", len(population))
         # pdb.set_trace()
-        sampled_particle_indices = np.random.choice(np.arange(len(population)), self.num_particles,
+        sampled_particle_indices = np.random.choice(np.arange(len(population)), int(len(self.beliefs) * 0.75),
                                                     p=population_weights, replace=True)
 
         for i in sampled_particle_indices:
-            x_noise = random.normalvariate(0, 0.1)
-            y_noise = random.normalvariate(0, 0.1)
-            z_noise = random.normalvariate(0, 0.1)
-            w_noise = random.normalvariate(0, 0.1)
+            x_noise = random.normalvariate(0, 0.05)
+            y_noise = random.normalvariate(0, 0.05)
+            z_noise = random.normalvariate(0, 0.05)
+            w_noise = random.normalvariate(0, 0.05)
             x, y, z, w = population[i][0]
             depth = population[i][1]
             initial_human_model = self.param_to_model[population[i]]
 
             x, y, z, w = x + x_noise, y + y_noise, z + z_noise, w + w_noise
 
-            weight_vector = (np.round(x, 2), np.round(y, 2), np.round(z, 2), np.round(w, 2))
+            weight_vector = (np.round(x, 1), np.round(y, 1), np.round(z, 1), np.round(w, 1))
             # weight_vector = (x, y, z, w)
-            possible_weights[(weight_vector, depth)] = 1 / self.num_particles
-            new_human_model = Human_Hypothesis(weight_vector, depth)
+            possible_weights[(weight_vector, depth)] = 1 / len(sampled_particle_indices)
+            new_human_model = Human_Hypothesis(weight_vector, depth, self.num_particles)
 
             # r = np.random.uniform(0, 1)
             # if r < 0.5:
@@ -172,14 +323,19 @@ class Robot_Model():
         self.beliefs = possible_weights
         self.param_to_model = new_param_to_model
 
-    def update_with_partner_action(self, human_state, human_action):
+    def update_with_partner_action(self, human_state, human_action, is_done):
+        weighted_accuracy = self.get_percent_particles_w_correct_prediction(human_state, human_action)
+
         self.update_particle_weights(human_state, human_action)
-        self.resample_particles()
+        if is_done:
+            # self.resample_particles()
+            self.pf_history.append(
+                self.get_K_weighted_combination_belief(self.beliefs, weighted_accuracy, k=1, resampled=True))
 
+        else:
+            self.pf_history.append(self.get_K_weighted_combination_belief(self.beliefs, weighted_accuracy, k=1, resampled=False))
 
-        self.pf_history.append(self.get_K_weighted_combination_belief(self.beliefs))
-
-    def plot_weight_updates(self, savename='weights.png'):
+    def plot_weight_updates(self, savename, savename_accuracy):
         # TODO
 
         weights_of_blue_over_time = []
@@ -187,15 +343,21 @@ class Robot_Model():
         weights_of_red_over_time = []
         weights_of_yellow_over_time = []
         depth_over_time = []
-        for (weighted_combination, weighted_depth) in self.pf_history:
+
+        particle_accuracy_over_time = []
+        resampled_over_time = []
+
+        for (weighted_combination, weighted_depth, weighted_accuracy, resampled) in self.pf_history:
             
             weights_of_blue_over_time.append(weighted_combination[0])
             weights_of_green_over_time.append(weighted_combination[1])
             weights_of_red_over_time.append(weighted_combination[2])
             weights_of_yellow_over_time.append(weighted_combination[3])
             depth_over_time.append(weighted_depth)
+            particle_accuracy_over_time.append(weighted_accuracy)
+            resampled_over_time.append(resampled)
 
-        
+        plt.figure()
         plt.plot(range(len(weights_of_blue_over_time)), weights_of_blue_over_time, color='blue', label='blue')
         plt.plot(range(len(weights_of_green_over_time)), weights_of_green_over_time, color='green', label='green')
         plt.plot(range(len(weights_of_red_over_time)), weights_of_red_over_time, color='red', label='red')
@@ -208,35 +370,50 @@ class Robot_Model():
         plt.title(f"Robot's Beliefs of Human Models: ")
         plt.savefig(f"{savename}")
         plt.close()
+        plt.cla()
+        plt.clf()
 
-    def get_max_belief(self):
-        max_prob = 0
-        best_weights = None
-        for weight_vector in self.beliefs:
-            if self.beliefs[weight_vector] > max_prob:
-                max_prob = self.beliefs[weight_vector]
-                best_weights = weight_vector
+        plt.figure()
+        plt.plot(range(len(particle_accuracy_over_time)), particle_accuracy_over_time, color='blue', label='blue')
+        # print("particle_accuracy_over_time", particle_accuracy_over_time)
+        for i in range(len(resampled_over_time)):
+            if resampled_over_time[i] is True:
+                plt.scatter(np.arange(len(particle_accuracy_over_time))[i], particle_accuracy_over_time[i], c='r')
+            else:
+                plt.scatter(np.arange(len(particle_accuracy_over_time))[i], particle_accuracy_over_time[i], c='g')
+        plt.xlabel("Timestep")
+        plt.ylabel("Particle Weighted Accuracy")
+        plt.legend()
+        plt.title(f"PF Accuracy Whenever Human Acts")
+        # print("savename_accuracy", savename_accuracy)
+        plt.savefig(f"{savename_accuracy}")
+        plt.close()
+        plt.cla()
+        plt.clf()
 
-        return best_weights
-
-    def get_K_weighted_combination_belief(self, beliefs, k=5):
+    def get_K_weighted_combination_belief(self, beliefs, weighted_accuracy, k=1, resampled=False):
 
         top_5 = dict(sorted(beliefs.items(), key=operator.itemgetter(1), reverse=True)[:k])
         weighted_combination = np.array([0, 0, 0, 0])
         weighted_depth = 0.0
+        total_prob = sum([beliefs[(weight_vector, depth)] for (weight_vector, depth) in top_5])
+        if total_prob == 0:
+            total_prob = 0.0001
+
         for (weight_vector, depth) in top_5:
-            prob = beliefs[(weight_vector, depth)]
+            prob = beliefs[(weight_vector, depth)]/total_prob
             weighted_combination = weighted_combination + (np.array(list(weight_vector)) * prob)
-            weighted_depth = weighted_depth + (depth * prob)
+            weighted_depth = weighted_depth + ((depth-1) * prob)
 
         weighted_combination = tuple(weighted_combination)
 
-        return (weighted_combination, weighted_depth)
+        return (weighted_combination, weighted_depth, weighted_accuracy, resampled)
 
-    def update_human_models_with_robot_action(self, robot_state, robot_action):
+    def update_human_models_with_robot_action(self, robot_state, robot_action, is_done):
         for param in self.param_to_model:
             self.param_to_model[param].update_particle_weights(robot_state, robot_action)
-            self.param_to_model[param].resample_particles()
+            if is_done:
+                self.param_to_model[param].resample_particles()
 
     def resample(self):
         self.resample_particles()
@@ -252,12 +429,42 @@ class Robot_Model():
                 best_model = self.param_to_model[params]
                 highest_prob = self.beliefs[params]
                 best_params = params
-        return best_params, best_model
+        return best_model
 
-    def act(self, input_state, robot_history, human_history):
+    def get_top_K_likelihood_human_model(self, k=1):
+        top_5 = dict(sorted(self.beliefs.items(), key=operator.itemgetter(1), reverse=True)[:k])
+        weighted_combination = np.array([0, 0, 0, 0])
+        weighted_depth = 0.0
+        total_prob = sum([self.beliefs[(weight_vector, depth)] for (weight_vector, depth) in top_5])
+        if total_prob == 0:
+            total_prob = 0.0001
+
+        for (weight_vector, depth) in top_5:
+            prob = self.beliefs[(weight_vector, depth)] / total_prob
+            weighted_combination = weighted_combination + (np.array(list(weight_vector)) * prob)
+            weighted_depth = weighted_depth + ((depth - 1) * prob)
+
+        weighted_combination = tuple(weighted_combination)
+        if weighted_depth > 0.5:
+            weighted_depth = 1
+        else:
+            weighted_depth = 0
+
+        weighted_combination = tuple([np.round(elem, 2) for elem in weighted_combination])
+        # print("total_prob", total_prob)
+        # print("weighted_combination", weighted_combination)
+        # print("weighted_depth", weighted_depth)
+        with open(self.log_filename, 'a') as f:
+            f.write(f"\nRobot's top human model = {(weighted_combination, weighted_depth, total_prob)}")
+
+        return weighted_combination, weighted_depth, total_prob
+
+    def act_every_timestep(self, input_state, robot_history, human_history):
         (human_pref, human_depth), human_model = self.get_max_likelihood_human_model()
+        # (weighted_combination, weighted_depth, weighted_accuracy) = self.get_K_weighted_combination_belief(self.beliefs, 0, k=5)
 
-        self.himdp = HiMDP(human_pref, human_depth, self.vi_type)
+        # self.himdp = HiMDP(human_pref, human_depth, self.vi_type, start_state=input_state, robot_rew=self.ind_rew)
+        self.himdp = HiMDP(human_pref, human_depth, self.vi_type, start_state=input_state, robot_rew=self.ind_rew, h_scalar=self.h_scalar)
         self.himdp.set_human_model(human_model)
         self.himdp.enumerate_states()
         self.himdp.value_iteration()
@@ -294,6 +501,184 @@ class Robot_Model():
         color_selected = self.himdp.idx_to_action[best_color]
 
         return color_selected
+
+    def get_humans_beliefs_of_robot(self, k=1):
+        top_5 = dict(sorted(self.beliefs.items(), key=operator.itemgetter(1), reverse=True)[:k])
+        weighted_combination = np.array([0, 0, 0, 0])
+
+        total_prob = sum([(self.beliefs[(weight_vector, depth)] if depth==2 else 0) for (weight_vector, depth) in top_5])
+        if total_prob == 0:
+            total_prob = 0.0001
+
+        for (weight_vector, depth) in top_5:
+            prob = self.beliefs[(weight_vector, depth)] / total_prob
+
+            if depth == 2:
+                human_model = self.param_to_model[(weight_vector, depth)]
+                inferred_robot_rew, confidence = human_model.get_K_weighted_combination_vector()
+                weighted_combination = weighted_combination + (np.array(list(inferred_robot_rew)) * prob)
+
+        weighted_combination = tuple(weighted_combination)
+        return weighted_combination
+
+    def act(self, input_state, robot_history, human_history, iteration):
+        if iteration == 0:
+            self.inferred_human_beliefs_of_robot.append(self.get_humans_beliefs_of_robot())
+            human_pref, human_depth, total_prob = self.get_top_K_likelihood_human_model()
+            # print("Robot COnfidence = ", total_prob)
+            human_model = self.get_max_likelihood_human_model()
+            # (weighted_combination, weighted_depth, weighted_accuracy) = self.get_K_weighted_combination_belief(self.beliefs, 0, k=5)
+
+            # self.himdp = HiMDP(human_pref, human_depth, self.vi_type, start_state=input_state, robot_rew=self.ind_rew)
+            if self.log_filename is not None:
+                with open(self.log_filename, 'a') as f:
+                    f.write(f"\nRobot's own rewards + human pref = {np.array(self.ind_rew) + np.array(human_pref)}")
+
+
+            if self.log_filename is not None:
+                with open(self.log_filename, 'a') as f:
+                    f.write(f"\nRobot's confidence = {total_prob}")
+
+            self.himdp = HiMDP(human_pref, human_depth, self.vi_type, start_state=input_state, robot_rew=self.ind_rew, h_scalar=self.h_scalar,
+                               confidence=total_prob)
+            self.himdp.set_human_model(human_model)
+            self.himdp.enumerate_states()
+            self.himdp.value_iteration()
+
+        state = [input_state, robot_history, human_history]
+        flat_state = self.himdp.flatten_to_tuple(state)
+        state_idx = self.himdp.state_to_idx[flat_state]
+
+        action_distribution = self.himdp.policy[state_idx]
+        # pdb.set_trace()
+        best_color = None
+        highest_prob = -1000
+        for color in COLOR_LIST:
+            color_idx = self.himdp.action_to_idx[color]
+            if input_state[color] > 0:
+                if action_distribution[color_idx] > highest_prob:
+                    best_color = color
+                    highest_prob = action_distribution[color_idx]
+
+
+        # best_color = None
+        # highest_prob = -1000
+        # for joint_action_idx in self.himdp.idx_to_action:
+        #     prob = action_distribution[joint_action_idx]
+        #     color = self.himdp.idx_to_action[joint_action_idx][0]
+        #     if input_state[color] > 0:
+        #         if prob > highest_prob:
+        #             highest_prob = prob
+        #             best_color = color
+        #
+        # color_selected = best_color
+        # color_selected = self.himdp.idx_to_action[int(self.himdp.pi[state_idx, 0])]
+        color_selected = self.himdp.idx_to_action[best_color]
+
+        return color_selected
+
+    def plot_beliefs_of_humans(self, savename, savename_accuracy):
+
+        weights_of_blue_over_time = []
+        weights_of_green_over_time = []
+        weights_of_red_over_time = []
+        weights_of_yellow_over_time = []
+
+
+        for weighted_combination in self.inferred_human_beliefs_of_robot:
+            weights_of_blue_over_time.append(weighted_combination[0])
+            weights_of_green_over_time.append(weighted_combination[1])
+            weights_of_red_over_time.append(weighted_combination[2])
+            weights_of_yellow_over_time.append(weighted_combination[3])
+
+        plt.figure()
+        plt.plot(range(len(weights_of_blue_over_time)), weights_of_blue_over_time, color='blue', label='blue')
+        plt.plot(range(len(weights_of_green_over_time)), weights_of_green_over_time, color='green', label='green')
+        plt.plot(range(len(weights_of_red_over_time)), weights_of_red_over_time, color='red', label='red')
+        plt.plot(range(len(weights_of_yellow_over_time)), weights_of_yellow_over_time, color='yellow', label='yellow')
+
+        plt.xlabel("Round")
+        plt.ylabel("Belief Weight and Depth")
+        plt.legend()
+        plt.title(f"Robot's Beliefs of Human's Belief about robot: ")
+        plt.savefig(f"{savename}")
+        plt.close()
+        plt.cla()
+        plt.clf()
+
+    def plot_beliefs_to_axes(self, ax1, ax2, ax3):
+        self.plot_beliefs_of_human_to_axes(ax1, ax2)
+        self.plot_beliefs_of_human_beliefs_to_axes(ax3)
+
+
+
+
+    def plot_beliefs_of_human_to_axes(self, ax1, ax2):
+        weights_of_blue_over_time = []
+        weights_of_green_over_time = []
+        weights_of_red_over_time = []
+        weights_of_yellow_over_time = []
+        depth_over_time = []
+
+        particle_accuracy_over_time = []
+        resampled_over_time = []
+
+        for (weighted_combination, weighted_depth, weighted_accuracy, resampled) in self.pf_history:
+            weights_of_blue_over_time.append(weighted_combination[0])
+            weights_of_green_over_time.append(weighted_combination[1])
+            weights_of_red_over_time.append(weighted_combination[2])
+            weights_of_yellow_over_time.append(weighted_combination[3])
+            depth_over_time.append(weighted_depth)
+            particle_accuracy_over_time.append(weighted_accuracy)
+            resampled_over_time.append(resampled)
+
+        ax1.plot(range(len(weights_of_blue_over_time)), weights_of_blue_over_time, color='blue', label='blue')
+        ax1.plot(range(len(weights_of_green_over_time)), weights_of_green_over_time, color='green', label='green')
+        ax1.plot(range(len(weights_of_red_over_time)), weights_of_red_over_time, color='red', label='red')
+        ax1.plot(range(len(weights_of_yellow_over_time)), weights_of_yellow_over_time, color='yellow', label='yellow')
+        ax1.plot(range(len(depth_over_time)), depth_over_time, color='m', label='depth')
+
+        ax1.set(xlabel='Timestep', ylabel="Belief Weight and Depth")
+        ax1.legend()
+        ax1.title.set_text(f"Robot's Beliefs of Human Models:")
+
+
+        ax2.plot(range(len(particle_accuracy_over_time)), particle_accuracy_over_time, color='blue', label='blue')
+        # print("particle_accuracy_over_time", particle_accuracy_over_time)
+        for i in range(len(resampled_over_time)):
+            if resampled_over_time[i] is True:
+                ax2.scatter(np.arange(len(particle_accuracy_over_time))[i], particle_accuracy_over_time[i], c='r')
+            else:
+                ax2.scatter(np.arange(len(particle_accuracy_over_time))[i], particle_accuracy_over_time[i], c='g')
+
+        ax2.set(xlabel='Timestep', ylabel="Particle Weighted Accuracy")
+        # ax2.legend()
+        ax2.title.set_text(f"PF Accuracy Whenever Human Acts")
+
+
+
+    def plot_beliefs_of_human_beliefs_to_axes(self, ax):
+        weights_of_blue_over_time = []
+        weights_of_green_over_time = []
+        weights_of_red_over_time = []
+        weights_of_yellow_over_time = []
+
+        for weighted_combination in self.inferred_human_beliefs_of_robot:
+            weights_of_blue_over_time.append(weighted_combination[0])
+            weights_of_green_over_time.append(weighted_combination[1])
+            weights_of_red_over_time.append(weighted_combination[2])
+            weights_of_yellow_over_time.append(weighted_combination[3])
+
+        ax.plot(range(len(weights_of_blue_over_time)), weights_of_blue_over_time, color='blue', label='blue')
+        ax.plot(range(len(weights_of_green_over_time)), weights_of_green_over_time, color='green', label='green')
+        ax.plot(range(len(weights_of_red_over_time)), weights_of_red_over_time, color='red', label='red')
+        ax.plot(range(len(weights_of_yellow_over_time)), weights_of_yellow_over_time, color='yellow', label='yellow')
+
+        ax.set(xlabel='Round', ylabel="Belief Weight and Depth")
+        ax.legend()
+        ax.title.set_text(f"Robot's Beliefs of Human's Belief about robot: ")
+
+
 
 
 

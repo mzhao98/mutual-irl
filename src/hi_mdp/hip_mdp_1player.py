@@ -26,12 +26,27 @@ START_STATE = [2,5,1,2]
 
 
 class HiMDP():
-    def __init__(self, human_rew, human_depth, vi_type):
+    def __init__(self, human_rew, human_depth, vi_type, start_state, robot_rew, h_scalar, confidence):
         self.human_rew = human_rew
         self.human_depth = human_depth
         self.vi_type = vi_type
+        self.start_state = start_state
+        self.robot_rew = robot_rew
+        self.h_scalar = h_scalar
+        self.confidence = confidence
 
-        self.create_human_model()
+        self.confidence_scalar = 0.0
+        if self.confidence < 0.5:
+            self.confidence_scalar = 0.0
+        else:
+            self.confidence_scalar = 1.0
+        # self.confidence_scalar = self.confidence
+
+        self.h_scalar = (self.h_scalar * self.confidence_scalar)
+
+
+
+        # self.create_human_model(num_particles)
         self.reset()
 
 
@@ -39,7 +54,7 @@ class HiMDP():
         self.robot_rew = robot_rew
 
 
-    def create_human_model(self):
+    def create_human_model(self, num_particles):
         self.human_model = Human_Hypothesis(self.human_rew, self.human_depth)
 
     def set_human_model(self, robot_model):
@@ -48,11 +63,12 @@ class HiMDP():
 
     def reset(self):
         self.initialize_game()
-        self.set_robot_rew((0.9, -0.9, 0.1, 0.3))
+        # self.set_robot_rew((0.9, -0.9, 0.1, 0.3))
+        self.set_robot_rew(self.robot_rew)
 
 
     def initialize_game(self):
-        self.state = [START_STATE, [], []]
+        self.state = [self.start_state, [], []]
 
     def flatten_to_tuple(self, state):
         # return tuple([item for sublist in state for item in sublist])
@@ -129,7 +145,7 @@ class HiMDP():
 
         # update human model's model of robot FROM SCRATCH
         self.create_human_model()
-        sim_state = START_STATE
+        sim_state = self.start_state
         for i in range(len(state[ROBOT_IDX])):
             robot_action = state[ROBOT_IDX][i]
             human_action = state[HUMAN_IDX][i]
@@ -249,7 +265,7 @@ class HiMDP():
     # implementation of tabular value iteration
     def value_iteration(self):
         self.epsilson = 0.0001
-        self.gamma = 0.9
+        self.gamma = 0.999999999999
         self.maxiter = 100
 
 
@@ -308,7 +324,8 @@ class HiMDP():
 
                             # update human model's model of robot based on last robot action
                             copy_human_model = copy.deepcopy(self.human_model)
-                            copy_human_model.update_with_partner_action(initial_state, robot_action)
+
+                            copy_human_model.update_with_partner_action(initial_state, robot_action, False)
                             human_action = copy_human_model.act(current_state, [], [])
 
                             # update state and human's model of robot
@@ -317,11 +334,11 @@ class HiMDP():
                                 current_state[human_action] -= 1
 
                         s11 = self.state_to_idx[tuple(current_state)]
-                        joint_reward = r_sa + r_s1aH
+                        joint_reward = r_sa + (r_s1aH * self.h_scalar)
                         V_s11 = vf[s11]
                         Q[s,action_idx] = joint_reward + (self.gamma * V_s11)
 
-                elif self.vi_type == 'mmvi-nh':
+                elif self.vi_type == 'mmvi_nh':
                     # Add partner rew
                     initial_state = copy.deepcopy(list(self.idx_to_state[s]))
                     for action_idx in range(n_actions):
@@ -347,7 +364,7 @@ class HiMDP():
                                 current_state[human_action] -= 1
 
                         s11 = self.state_to_idx[tuple(current_state)]
-                        joint_reward = r_sa + r_s1aH
+                        joint_reward = r_sa + (r_s1aH * self.h_scalar)
                         V_s11 = vf[s11]
                         Q[s,action_idx] = joint_reward + (self.gamma * V_s11)
 
@@ -388,7 +405,7 @@ class HiMDP():
             # check for convergence
             # print(f'delta = {delta}, iteration {i}')
             if delta < self.epsilson:
-                # print("DONE")
+                # print("DONE at iteration ", i)
                 break
         # compute optimal policy
         policy = {}
@@ -415,7 +432,7 @@ class HiMDP():
 
                         # update human model's model of robot based on last robot action
                         copy_human_model = copy.deepcopy(self.human_model)
-                        copy_human_model.update_with_partner_action(initial_state, robot_action)
+                        copy_human_model.update_with_partner_action(initial_state, robot_action, False)
                         human_action = copy_human_model.act(current_state, [], [])
 
                         # update state and human's model of robot
@@ -424,11 +441,11 @@ class HiMDP():
                             current_state[human_action] -= 1
 
                     s11 = self.state_to_idx[tuple(current_state)]
-                    joint_reward = r_sa + r_s1aH
+                    joint_reward = r_sa + (r_s1aH * self.h_scalar)
                     V_s11 = vf[s11]
                     Q[s, action_idx] = joint_reward +(self.gamma * V_s11)
 
-            elif self.vi_type == 'mmvi-nh':
+            elif self.vi_type == 'mmvi_nh':
                 # Add partner rew
                 initial_state = copy.deepcopy(list(self.idx_to_state[s]))
                 for action_idx in range(n_actions):
@@ -454,7 +471,7 @@ class HiMDP():
                             current_state[human_action] -= 1
 
                     s11 = self.state_to_idx[tuple(current_state)]
-                    joint_reward = r_sa + r_s1aH
+                    joint_reward = r_sa + (r_s1aH * self.h_scalar)
                     V_s11 = vf[s11]
                     Q[s, action_idx] = joint_reward +(self.gamma * V_s11)
 

@@ -10,7 +10,7 @@ YELLOW = 3
 COLOR_LIST = [BLUE, GREEN, RED, YELLOW]
 
 class True_Human_Model():
-    def __init__(self, individual_reward, depth, num_particles=100):
+    def __init__(self, individual_reward, depth, num_particles):
         self.ind_rew = individual_reward
         self.depth = depth
         self.num_particles = num_particles
@@ -23,10 +23,11 @@ class True_Human_Model():
     def set_mdp(self, mdp):
         self.mdp = mdp
 
-    def update_with_partner_action(self, robot_state, robot_action):
+    def update_with_partner_action(self, robot_state, robot_action, is_done):
         if self.depth == 2:
             self.update_particle_weights(robot_state, robot_action)
-            self.resample_particles()
+            if is_done:
+                self.resample_particles()
 
     def resample(self):
         self.resample_particles()
