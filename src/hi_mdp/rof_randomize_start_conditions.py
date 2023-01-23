@@ -18,11 +18,26 @@ COLOR_TO_TEXT = {BLUE: 'blue', GREEN:'green', RED:'red', YELLOW:'yellow'}
 from true_human_agent import True_Human_Model
 from human_hypothesis import Human_Hypothesis
 from himdp import HiMDP
-from robot_tom_agent import Robot_Model
+from robot_tom_agent_dualpf import Robot_Model
+# from robot_tom_agent import Robot_Model
 from multiprocessing import Pool, freeze_support
 import os
 import pickle
 import json
+from check_greedy_vs_altruistic import compare_optimal_to_greedy, Joint_MDP
+
+
+import sys, os
+
+# Disable
+def blockPrint():
+    sys.stdout = open(os.devnull, 'w')
+
+# Restore
+def enablePrint():
+    sys.stdout = sys.__stdout__
+
+
 
 class NumpyEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -31,13 +46,14 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 class RingOfFire():
-    def __init__(self, robot, human, start_state, log_filename):
+    def __init__(self, robot, human, start_state, log_filename, to_plot):
         self.robot = robot
         self.human = human
         self.log_filename = log_filename
         self.total_reward = 0
         self.rew_history = []
         self.start_state = copy.deepcopy(start_state)
+        self.to_plot = to_plot
         self.reset()
 
     def reset(self):
@@ -121,9 +137,10 @@ class RingOfFire():
         robot_history = []
         human_history = []
 
-        num_objects = int(sum(self.start_state)/2)
-        fig, axs = plt.subplots(num_objects, 6, figsize=(30, 28))
-        fig.tight_layout(pad=5.0)
+        if self.to_plot:
+            num_objects = int(sum(self.start_state)/2)
+            fig, axs = plt.subplots(num_objects, 6, figsize=(30, 28))
+            fig.tight_layout(pad=5.0)
         # self.total_reward = 0
 
         while self.is_done() is False:
@@ -134,9 +151,10 @@ class RingOfFire():
             robot_history.append(r_action)
             human_history.append(h_action)
 
-            self.plot_game_actions(axs[iteration_count, 0], iteration_count, self.total_reward, robot_history, human_history)
-            self.plot_robot_beliefs(axs[iteration_count, 1], axs[iteration_count, 2], axs[iteration_count, 3])
-            self.plot_true_human_beliefs(axs[iteration_count, 4], axs[iteration_count, 5])
+            if self.to_plot:
+                self.plot_game_actions(axs[iteration_count, 0], iteration_count, self.total_reward, robot_history, human_history)
+                self.plot_robot_beliefs(axs[iteration_count, 1], axs[iteration_count, 2], axs[iteration_count, 3])
+                self.plot_true_human_beliefs(axs[iteration_count, 4], axs[iteration_count, 5])
 
             iteration_count += 1
 
@@ -144,9 +162,10 @@ class RingOfFire():
             f.write(f"\nfinal_reward = {self.total_reward}")
             f.write('\n')
 
-        savefolder = self.log_filename.split("log.txt")[0]
-        plt.savefig(savefolder + f'single_round_result_{round}.png')
-        plt.close()
+        if self.to_plot:
+            savefolder = self.log_filename.split("log.txt")[0]
+            plt.savefig(savefolder + f'single_round_result_{round}.png')
+            plt.close()
         # self.robot.resample()
         # self.human.resample()
 
@@ -241,7 +260,8 @@ def plot_results(experiment_results, num_rounds, true_human_order, savename="ima
     plt.close()
 
 
-def run_k_rounds(list_of_start_states, mm_order, seed, num_rounds, vi_type, true_human_order, robot_rewards, human_rewards, num_particles, exp_path, h_scalar, r_scalar):
+def run_k_rounds(list_of_start_states, mm_order, seed, num_rounds, vi_type, true_human_order, robot_rewards,
+                 human_rewards, num_particles, exp_path, h_scalar, r_scalar, to_plot):
     # print(f"running seed {seed} for mm_order {mm_order} ")
     np.random.seed(seed)
     log_filename = "exp_results/" + exp_path + '/' + vi_type + '/weights_imgs/' + mm_order + '/' + 'log.txt'
@@ -252,14 +272,15 @@ def run_k_rounds(list_of_start_states, mm_order, seed, num_rounds, vi_type, true
                                         log_filename=log_filename)
     # true_human_agent = True_Human_Model(human_rewards, true_human_order, num_particles=num_particles)
 
-    rof_game = RingOfFire(robot_agent, true_human_agent, list_of_start_states[0], log_filename)
+    rof_game = RingOfFire(robot_agent, true_human_agent, list_of_start_states[0], log_filename, to_plot)
     # rof_game.run_full_game()
 
-    collective_scores = {x: [] for x in range(num_rounds+1)}
+    collective_scores = {x: [] for x in range(num_rounds)}
 
-    fig, axs = plt.subplots(10, 6, figsize=(30, 28))
-    # fig.tight_layout()
-    fig.tight_layout(pad=5.0)
+    if to_plot:
+        fig, axs = plt.subplots(num_rounds, 6, figsize=(30, 28))
+        # fig.tight_layout()
+        fig.tight_layout(pad=5.0)
     # plt.subplots_adjust(wspace=None, hspace=None)
 
     for round in range(num_rounds):
@@ -271,13 +292,15 @@ def run_k_rounds(list_of_start_states, mm_order, seed, num_rounds, vi_type, true
         total_rew, robot_history, human_history = rof_game.run_full_game(round)
         collective_scores[round].append(total_rew)
 
-        rof_game.plot_game_actions(axs[round, 0], round, total_rew, robot_history, human_history)
-        rof_game.plot_robot_beliefs(axs[round, 1], axs[round, 2], axs[round, 3])
-        rof_game.plot_true_human_beliefs(axs[round, 4], axs[round, 5])
+        if to_plot:
+            rof_game.plot_game_actions(axs[round, 0], round, total_rew, robot_history, human_history)
+            rof_game.plot_robot_beliefs(axs[round, 1], axs[round, 2], axs[round, 3])
+            rof_game.plot_true_human_beliefs(axs[round, 4], axs[round, 5])
 
-    savefolder = "exp_results/" + exp_path + '/' + vi_type + '/weights_imgs/' + mm_order + '/'
-    plt.savefig(savefolder + 'multi_round_results.png')
-    plt.close()
+    if to_plot:
+        savefolder = "exp_results/" + exp_path + '/' + vi_type + '/weights_imgs/' + mm_order + '/'
+        plt.savefig(savefolder + 'multi_round_results.png')
+        plt.close()
     # for round in range(1):
     #     with open(log_filename, 'a') as f:
     #         f.write(f"\nROUND = {round}")
@@ -294,14 +317,14 @@ def run_k_rounds(list_of_start_states, mm_order, seed, num_rounds, vi_type, true
     #     collective_scores[num_rounds].append(total_rew1 + total_rew2)
 
     # print("Plotting Weight Updates")
-
-    robot_agent.plot_weight_updates(savefolder + f"Robot_{seed}-seed_depth-rewards.png",
-                                    savefolder + f"Robot_{seed}-seed_accuracy.png")
-    robot_agent.plot_beliefs_of_humans(savefolder + f"RsHumanBeliefs_{seed}-seed_depth-rewards.png",
-                                    savefolder + f"RsHumanBeliefs_{seed}-seed_accuracy.png")
-    if true_human_order == 2:
-        true_human_agent.plot_weight_updates(savefolder + f"TrueHuman_{seed}-seed_depth-rewards.png",
-                                             savefolder + f"TrueHuman_{seed}-seed_accuracy.png")
+    if to_plot:
+        robot_agent.plot_weight_updates(savefolder + f"Robot_{seed}-seed_depth-rewards.png",
+                                        savefolder + f"Robot_{seed}-seed_accuracy.png")
+        robot_agent.plot_beliefs_of_humans(savefolder + f"RsHumanBeliefs_{seed}-seed_depth-rewards.png",
+                                        savefolder + f"RsHumanBeliefs_{seed}-seed_accuracy.png")
+        if true_human_order == 2:
+            true_human_agent.plot_weight_updates(savefolder + f"TrueHuman_{seed}-seed_depth-rewards.png",
+                                                 savefolder + f"TrueHuman_{seed}-seed_accuracy.png")
     # print("Done Weight Updates")
     return collective_scores
 
@@ -321,7 +344,7 @@ def randomList(m, n):
     return arr
 
 def run_experiment(list_of_start_states, vi_type, n_seeds, true_human_order, robot_rewards, human_rewards, num_particles,
-                   exp_path, num_rounds, h_scalar, r_scalar):
+                   exp_path, num_rounds, h_scalar, r_scalar, to_plot):
     # np.random.seed(0)
     num_seeds = n_seeds
     list_of_random_seeds = np.random.randint(0, 100000, num_seeds)
@@ -339,15 +362,15 @@ def run_experiment(list_of_start_states, vi_type, n_seeds, true_human_order, rob
     seed_val = list_of_random_seeds[0]
     first_order_scores = run_k_rounds(list_of_start_states, 'first', seed_val, num_rounds, vi_type,
                                                        true_human_order, robot_rewards, human_rewards, num_particles,
-                                                       exp_path, h_scalar, r_scalar)
+                                                       exp_path, h_scalar, r_scalar, to_plot)
 
     second_order_scores = run_k_rounds(list_of_start_states, 'second', seed_val, num_rounds, vi_type,
                                        true_human_order, robot_rewards, human_rewards, num_particles,
-                                       exp_path, h_scalar, r_scalar)
+                                       exp_path, h_scalar, r_scalar, to_plot)
 
     both_order_scores = run_k_rounds(list_of_start_states, 'both', seed_val, num_rounds, vi_type,
                                        true_human_order, robot_rewards, human_rewards, num_particles,
-                                       exp_path, h_scalar, r_scalar)
+                                       exp_path, h_scalar, r_scalar, to_plot)
 
     # for result in first_order_scores:
     for round_no in first_order_scores:
@@ -382,38 +405,39 @@ def run_experiment(list_of_start_states, vi_type, n_seeds, true_human_order, rob
     with open(savefile, 'w') as fp:
         # json.dumps(experiment_params, cls=NumpyEncoder)
         json.dump(experiment_params, fp, cls=NumpyEncoder)
-        print("Saved experiment params")
+        # print("Saved experiment params")
 
     savefile = "exp_results/" + exp_path + '/' + vi_type + '/pkl_results' + '/results.pkl'
     with open(savefile, 'wb') as handle:
         pickle.dump(experiment_results, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        print("Saved pickled experiment results")
+        # print("Saved pickled experiment results")
 
     savefile = "exp_results/" + exp_path + '/' + vi_type + '/agg_imgs' + '/scores_over_time.png'
-    plot_results(experiment_results, num_rounds, true_human_order, savefile)
-    print("Plotted experiment results")
-
-    print(f"Model {vi_type}: Results:")
+    if to_plot:
+        plot_results(experiment_results, num_rounds, true_human_order, savefile)
+    # print("Plotted experiment results")
+    #
+    # print(f"Model {vi_type}: Results:")
 
     final_result = {}
     end_rews = [elem for elem in experiment_results[1][num_rounds-1]]
-    print("First only = ", (np.mean(end_rews), np.std(end_rews)))
+    # print("First only = ", (np.mean(end_rews), np.std(end_rews)))
     final_result['first'] = np.mean(end_rews)
 
     end_rews = [elem for elem in experiment_results[2][num_rounds - 1]]
-    print("Second only = ", (np.mean(end_rews), np.std(end_rews)))
+    # print("Second only = ", (np.mean(end_rews), np.std(end_rews)))
     final_result['second'] = np.mean(end_rews)
 
     end_rews = [elem for elem in experiment_results[3][num_rounds - 1]]
-    print("Both = ", (np.mean(end_rews), np.std(end_rews)))
+    # print("Both = ", (np.mean(end_rews), np.std(end_rews)))
     final_result['both'] = np.mean(end_rews)
     return final_result
 
-def run_ablation(start_state, robot_rewards, human_rewards):
-    start_seed = 0
+def run_ablation(start_state, robot_rewards, human_rewards, to_plot):
+    start_seed = np.random.randint(0, 10000)
     number_of_seeds = 1
     true_human_order = 2
-    h_scalar = 10
+    h_scalar = 1
     r_scalar = 1
 
     list_of_start_states = [start_state]
@@ -439,7 +463,7 @@ def run_ablation(start_state, robot_rewards, human_rewards):
             os.makedirs("exp_results/" + path + '/' + vi_type + '/agg_imgs')
             os.makedirs("exp_results/" + path + '/' + vi_type + '/pkl_results')
 
-        print(f"Path created at {path}")
+        # print(f"Path created at {path}")
 
     if start_seed is not None:
         np.random.seed(start_seed)
@@ -448,14 +472,14 @@ def run_ablation(start_state, robot_rewards, human_rewards):
     for vi_type in vi_types:
         final_result = run_experiment(list_of_start_states=list_of_start_states, vi_type=vi_type, n_seeds = number_of_seeds, true_human_order=true_human_order,
                        robot_rewards=robot_rewards, human_rewards=human_rewards, num_particles=num_particles, exp_path=path,
-                       num_rounds=num_rounds, h_scalar=h_scalar, r_scalar=r_scalar)
+                       num_rounds=num_rounds, h_scalar=h_scalar, r_scalar=r_scalar, to_plot=to_plot)
         vi_type_to_result[vi_type] = final_result
 
-    print("vi_type_to_result", vi_type_to_result)
+    # print("vi_type_to_result", vi_type_to_result)
     return vi_type_to_result
 
 
-def run_random_start(random_iter, seed=None):
+def run_random_start(random_iter, to_plot):
     start_state = randomList(4, 10)
 
     corpus = (np.round(np.random.uniform(-1, 1), 1), np.round(np.random.uniform(-1, 1), 1),
@@ -465,57 +489,24 @@ def run_random_start(random_iter, seed=None):
     random.shuffle(human_rewards)
     human_rewards = tuple(human_rewards)
 
-    print("\n\n")
+    # print("\n\n")
     print("Experiment ", random_iter)
-    print("start_state =", start_state)
-    print("robot_rewards = ", robot_rewards)
-    print("human_rewards = ", human_rewards)
-    vi_type_to_result = run_ablation(start_state, robot_rewards, human_rewards)
+    # print("start_state =", start_state)
+    # print("robot_rewards = ", robot_rewards)
+    # print("human_rewards = ", human_rewards)
+    vi_type_to_result = run_ablation(start_state, robot_rewards, human_rewards, to_plot)
     return vi_type_to_result
 
 
-def plot_diffs_boxplot(data, num_iters):
+def plot_diffs_boxplot(data, num_iters, savename):
     fig = plt.figure(figsize=(10, 7))
     ax = fig.add_subplot(111)
 
     # Creating axes instance
-    bp = ax.boxplot(data, patch_artist=True,
-                    notch='True', vert=0)
-
-    colors = ['#0000FF', '#00FF00',
-              '#FFFF00']
-
-    for patch, color in zip(bp['boxes'], colors):
-        patch.set_facecolor(color)
-
-    # changing color and linewidth of
-    # whiskers
-    for whisker in bp['whiskers']:
-        whisker.set(color='#8B008B',
-                    linewidth=1.5,
-                    linestyle=":")
-
-    # changing color and linewidth of
-    # caps
-    for cap in bp['caps']:
-        cap.set(color='#8B008B',
-                linewidth=2)
-
-    # changing color and linewidth of
-    # medians
-    for median in bp['medians']:
-        median.set(color='red',
-                   linewidth=3)
-
-    # changing style of fliers
-    for flier in bp['fliers']:
-        flier.set(marker='D',
-                  color='#e7298a',
-                  alpha=0.5)
+    bp = ax.boxplot(data, vert=0)
 
     # x-axis labels
-    ax.set_yticklabels(['both', 'first',
-                        'second'])
+    ax.set_yticklabels(['both'])
 
     # Adding title
     plt.title(f"Diff MIRL minus VI: Nseeds={num_iters}")
@@ -526,29 +517,99 @@ def plot_diffs_boxplot(data, num_iters):
     ax.get_yaxis().tick_left()
 
     # show plot
-    plt.savefig(f'comparison_random_starts_seeds_{num_iters}.png')
+    plt.savefig(savename)
     plt.show()
 
-if __name__ == "__main__":
 
+def test_plot(better_bools, percents, savename):
+
+
+
+    num_times_better = 0
+    num_times_worse = 0
+    num_times_same = 0
+    for i in range(len(better_bools)):
+        if better_bools[i] == 1.0:
+            num_times_better += 1
+        elif better_bools[i] == 0.0:
+            num_times_same += 1
+        else:
+            num_times_worse += 1
+
+    num_times_better /= len(better_bools)
+    num_times_worse /= len(better_bools)
+    num_times_same /= len(better_bools)
+
+    plt.bar(['better', 'same', 'worse'], [num_times_better, num_times_same, num_times_worse], color='maroon',
+            width=0.4)
+
+    plt.xlabel("Outcomes")
+    plt.ylabel(f"Percent of Instances in {len(better_bools)} seeds")
+    plt.title("Game Outcomes")
+    plt.savefig(savename + '_outcomes.png')
+    plt.close()
+
+    plt.hist(percents, bins=50)
+    plt.xlabel("Percent Improvement")
+    plt.ylabel(f"Counts in {len(better_bools)} seeds")
+    plt.title("Game Percent Improvements")
+    plt.savefig(savename + '_percent_improvements.png')
+
+
+def main():
     vi_types = ['mmvi', 'stdvi']
     diffs_both = []
     diffs_first = []
     diffs_second = []
-    num_iters = 10
+
+    percents_both = []
+
+    num_iters = 5
+    to_plot = True
 
     with Pool(processes=10) as pool:
-        trial_results = pool.starmap(run_random_start, [(i, None) for i in range(num_iters)])
+        trial_results = pool.starmap(run_random_start, [(i, to_plot) for i in range(num_iters)])
 
     for vi_type_to_result in trial_results:
         diff_mmvi_minus_std_both = vi_type_to_result['mmvi']['both'] - vi_type_to_result['stdvi']['both']
+        if diff_mmvi_minus_std_both > 0:
+            diff_mmvi_minus_std_both = 1.0
+        elif diff_mmvi_minus_std_both == 0:
+            diff_mmvi_minus_std_both = 0.0
+        else:
+            diff_mmvi_minus_std_both = -1.0
         diffs_both.append(diff_mmvi_minus_std_both)
 
-        diff_mmvi_minus_std_first = vi_type_to_result['mmvi']['first'] - vi_type_to_result['stdvi']['first']
-        diffs_first.append(diff_mmvi_minus_std_first)
+        mmvi = vi_type_to_result['mmvi']['both']
+        std = vi_type_to_result['stdvi']['both']
 
-        diff_mmvi_minus_std_second = vi_type_to_result['mmvi']['second'] - vi_type_to_result['stdvi']['second']
-        diffs_second.append(diff_mmvi_minus_std_second)
+        minval = min(mmvi, std)
+        if std < 0 or mmvi < 0:
+            mmvi = mmvi - minval + 1
+            std = std - minval + 1
+        # assert std > 0 and mmvi > 0
+        if std == 0:
+            std = 0.01
+        change_percent = ((float(mmvi)-std)/abs(std))*100
+        percents_both.append(change_percent)
+
+        # diff_mmvi_minus_std_first = vi_type_to_result['mmvi']['first'] - vi_type_to_result['stdvi']['first']
+        # if diff_mmvi_minus_std_first > 0:
+        #     diff_mmvi_minus_std_first = 1.0
+        # elif diff_mmvi_minus_std_first == 0:
+        #     diff_mmvi_minus_std_first = 0.0
+        # else:
+        #     diff_mmvi_minus_std_first = -1.0
+        # diffs_first.append(diff_mmvi_minus_std_first)
+        #
+        # diff_mmvi_minus_std_second = vi_type_to_result['mmvi']['second'] - vi_type_to_result['stdvi']['second']
+        # if diff_mmvi_minus_std_second > 0:
+        #     diff_mmvi_minus_std_second = 1.0
+        # elif diff_mmvi_minus_std_second == 0:
+        #     diff_mmvi_minus_std_second = 0.0
+        # else:
+        #     diff_mmvi_minus_std_second = -1.0
+        # diffs_second.append(diff_mmvi_minus_std_second)
 
 
 
@@ -578,11 +639,101 @@ if __name__ == "__main__":
     #
     #     diff_mmvi_minus_std_second = vi_type_to_result['mmvi']['second'] - vi_type_to_result['stdvi']['second']
     #     diffs_second.append(diff_mmvi_minus_std_second)
+    print("diffs_both", diffs_both)
+    print(f"diffs_both: mean = {np.mean(diffs_both)}, std = {np.std(diffs_both)}")
+    # print(f"diffs_first: mean = {np.mean(diffs_first)}, std = {np.std(diffs_first)}")
+    # print(f"diffs_second: mean = {np.mean(diffs_second)}, std = {np.std(diffs_second)}")
 
+    data = [diffs_both]
+    # data = [diffs_both, diffs_first, diffs_second]
+    plot_diffs_boxplot(data, num_iters,  f'randomized_aggregate/h1_bool_improvements_nseeds-{num_iters}.png')
 
-    data = [diffs_both, diffs_first, diffs_second]
-    plot_diffs_boxplot(data)
+    print("percents_both", percents_both)
+    print(f"percents_both: mean = {np.mean(percents_both)}, std = {np.std(percents_both)}")
+    data = [percents_both]
+    # data = [diffs_both, diffs_first, diffs_second]
+    plot_diffs_boxplot(data, num_iters, f'randomized_aggregate/h1_percent_change_nseeds-{num_iters}.png')
 
+    test_plot(diffs_both, percents_both, f'randomized_aggregate/h1_result_nseeds-{num_iters}')
+
+    # open a file, where you ant to store the data
+    with open(f'randomized_aggregate/h1_booleans_nseeds-{num_iters}.pkl', 'wb') as file:
+        pickle.dump(diffs_both, file)
+
+    with open(f'randomized_aggregate/h1_percents_nseeds-{num_iters}.pkl', 'wb') as file:
+        pickle.dump(percents_both, file)
+
+def sample_configurations():
+    blockPrint()
+    total = 1000
+    n_mutual = 0
+    n_human = 0
+    n_robot = 0
+    n_greedy = 0
+
+    for i in range(total):
+        # print("i = ", i)
+        initial_state = randomList(4, 10)
+
+        corpus = (np.round(np.random.uniform(-1, 1), 1), np.round(np.random.uniform(-1, 1), 1),
+                  np.round(np.random.uniform(-1, 1), 1), np.round(np.random.uniform(-1, 1), 1))
+
+        robot_rewards = corpus
+        human_rewards = list(corpus)
+        random.shuffle(human_rewards)
+        human_rewards = tuple(human_rewards)
+        players_to_reward = [robot_rewards, human_rewards]
+
+        # print(f"initial_state = {initial_state}, players_to_reward={players_to_reward}")
+
+        optimal_rew, greedy_rew, human_altruism_n_instances, robot_altruism_n_instances = compare_optimal_to_greedy(
+            players_to_reward, initial_state)
+
+        if i % 100==0:
+            enablePrint()
+            print()
+            print("i = ", i)
+            print(f"optimal_rew = {optimal_rew}, greedy_rew = {greedy_rew}")
+            if human_altruism_n_instances > 0 and robot_altruism_n_instances > 0:
+                print("mutual")
+            elif human_altruism_n_instances > 0:
+                print("human altruism")
+            elif robot_altruism_n_instances > 0:
+                print("robot altruism")
+            else:
+                print("greedy optimal")
+            blockPrint()
+
+        if human_altruism_n_instances > 0 and robot_altruism_n_instances > 0:
+            n_mutual += 1
+        elif human_altruism_n_instances > 0:
+            n_human += 1
+        elif robot_altruism_n_instances > 0:
+            n_robot += 1
+        else:
+            print(f"optimal_rew = {optimal_rew}, greedy_rew = {greedy_rew}")
+            eps = 0.01
+            assert abs(optimal_rew - greedy_rew) < eps
+            n_greedy += 1
+
+    enablePrint()
+    n_mutual /= total
+    n_human /= total
+    n_robot /= total
+    n_greedy /= total
+
+    plt.bar(['mutual', 'human', 'robot', 'greedy'], [n_mutual, n_human, n_robot, n_greedy], color='maroon',
+            width=0.4)
+
+    plt.xlabel("Game Type")
+    plt.ylabel(f"Percent of Instances in {total} rounds")
+    plt.title("Frequency of Game Types")
+    plt.savefig(f"freq_game_types_nrounds-{total}.png")
+    plt.show()
+
+if __name__ == "__main__":
+    sample_configurations()
+    # main()
 
 
 

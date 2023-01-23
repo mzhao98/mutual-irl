@@ -1,3 +1,13 @@
+# For experiment_results
+src/hi_mdp/divergent_results/
+src/hi_mdp/exp_results/
+src/hi_mdp/images/
+src/hi_mdp/indiv_trial_images/
+src/hi_mdp/randomized_aggregate/
+src/hi_mdp/results/
+src/hi_mdp/weights_imgs/
+src/julia_mirl/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

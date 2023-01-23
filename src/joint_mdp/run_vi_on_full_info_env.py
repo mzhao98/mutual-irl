@@ -1,6 +1,6 @@
 import pdb
-
-from envs.full_info_env import Joint_MDP
+from envs.full_info_env import Joint_MDP_Original
+from envs.full_info_env_attempt2 import Joint_MDP
 from algs.value_iteration import value_iteration, find_policy
 from envs.utils import *
 
@@ -113,7 +113,7 @@ def test_vi_functionality():
 
     # compute optimal policy with value iteration
     print("running value iteration...")
-    values, policy = value_iteration(transitions, rewards)
+    values, policy = value_iteration(transitions, rewards, idx_to_state, state_to_idx )
     # policy = find_policy(n_states=len(state_to_idx), n_actions=len(idx_to_action), transition_probabilities=transitions,
     #                              reward=rewards, discount=0.99,
     #             threshold=1e-2, v=None, stochastic=True, max_iters=10)
@@ -124,6 +124,7 @@ def test_vi_functionality():
     vi_rew = env.rollout_full_game_vi_policy(policy)
     print(f"FINAL REWARD for optimal team = {vi_rew}")
 
+    # env = Joint_MDP_Original(index_of_human=1, index_of_robot=2, players_to_reward=players_to_reward)
     greedy_rew = env.rollout_full_game_greedy_pair()
     print(f"FINAL REWARD for greedy team = {greedy_rew}")
 

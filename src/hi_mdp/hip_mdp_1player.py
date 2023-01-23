@@ -35,11 +35,8 @@ class HiMDP():
         self.h_scalar = h_scalar
         self.confidence = confidence
 
-        self.confidence_scalar = 0.0
-        if self.confidence < 0.5:
-            self.confidence_scalar = 0.0
-        else:
-            self.confidence_scalar = 1.0
+        self.confidence_scalar = self.h_scalar/(1+np.exp(-60*(self.confidence-0.5)))
+        # self.confidence_scalar = 1
         # self.confidence_scalar = self.confidence
 
         self.h_scalar = (self.h_scalar * self.confidence_scalar)

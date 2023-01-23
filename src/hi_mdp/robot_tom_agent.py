@@ -198,10 +198,10 @@ class Robot_Model():
             #     prob_action_given_theta_state = 0.1
             # if self.mm_order == 'both' and depth == 2:
             # # prob_action_given_theta_state = np.exp(prob_action_given_theta_state)
-            # if abs(prob_action_given_theta_state - max(restructured_weight_vector)) < 0.02:
-            #     prob_action_given_theta_state = 0.8
-            # else:
-            #     prob_action_given_theta_state = 0.2
+            if abs(prob_action_given_theta_state - max(restructured_weight_vector)) < 0.02:
+                prob_action_given_theta_state = 0.8
+            else:
+                prob_action_given_theta_state = 0.2
             #
             # if prob_action_given_theta_state < 0.1:
             #     prob_action_given_theta_state = 0.1

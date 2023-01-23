@@ -337,7 +337,7 @@ def run_ablation():
     start_seed = 0
     number_of_seeds = 1
     true_human_order = 2
-    h_scalar = 10
+    h_scalar = 1
     r_scalar = 1
     # human_rewards = (0.25, 0.25, 0.25, 0.25)  # (0.9, -0.9, 0.1, 0.3)
     # robot_rewards = (0.9, 0.9, -0.9, -0.9)  # (0.9, 0.1, -0.9, 0.2)

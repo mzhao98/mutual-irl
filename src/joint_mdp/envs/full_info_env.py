@@ -19,10 +19,10 @@ COLOR_TO_TEXT = {RED: 'r', GREEN: 'g', BLUE: 'b', YELLOW: 'y'}
 
 
 
-class Joint_MDP:
+class Joint_MDP_Original:
     def __init__(self, index_of_human, index_of_robot, players_to_reward, initial_state=None):
         if initial_state is None:
-            self.initial_state = [[0, 3, 0, 0], [0, 19, 0, 0], [0, 1, 0, 0], [0, 11, 0, 0]]
+            self.initial_state = [[0, 2, 0, 0], [0, 5, 0, 0], [0, 1, 0, 0], [0, 2, 0, 0]]
         else:
             self.initial_state = initial_state
 
@@ -120,7 +120,7 @@ class Joint_MDP:
 
         state = copy.deepcopy(current_state)
 
-        total_reward = 1
+        total_reward = 0
         # Resolve player action
         for player_idx in range(NUM_PLAYERS):
             action_color = joint_action[player_idx]

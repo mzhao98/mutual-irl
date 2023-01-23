@@ -18,7 +18,7 @@ from hip_mdp_1player import HiMDP
 from human_hypothesis import Human_Hypothesis
 
 class Robot_Model():
-    def __init__(self, individual_reward, mm_order, vi_type, num_particles=200):
+    def __init__(self, individual_reward, mm_order, vi_type, num_particles=100):
         self.ind_rew = individual_reward
         self.num_particles = num_particles
         self.team_weights = [1, 1, 1, 1]
@@ -245,14 +245,16 @@ class Robot_Model():
                 best_params = params
         return best_params, best_model
 
-    def act(self, input_state, robot_history, human_history):
-        (human_pref, human_depth), human_model = self.get_max_likelihood_human_model()
+    def act(self, input_state, robot_history, human_history, iteration):
+        if iteration == 0:
+            (human_pref, human_depth), human_model = self.get_max_likelihood_human_model()
 
-        self.himdp = HiMDP(human_pref, human_depth, self.vi_type)
-        self.himdp.set_human_model(human_model)
-        self.himdp.enumerate_states()
-        self.himdp.value_iteration()
-
+            self.himdp = HiMDP(human_pref, human_depth, self.vi_type)
+            self.himdp.set_human_model(human_model)
+            self.himdp.enumerate_states()
+            print("running vi")
+            self.himdp.value_iteration()
+            print("done running vi")
 
         state = [input_state, robot_history, human_history]
         flat_state = self.himdp.flatten_to_tuple(state)

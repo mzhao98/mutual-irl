@@ -279,10 +279,9 @@ class Human_Hypothesis():
 
         elif self.depth == 2:
             robot_rew, confidence = self.get_K_weighted_combination_vector()
-            confidence_scalar = 0.0
-            if confidence > 0.5:
-                confidence_scalar = 1.0
-            # confidence_scalar = 1.0
+            confidence_scalar = self.r_scalar/(1+np.exp(-60*(confidence-0.5)))
+            # confidence_scalar = 1
+
             if self.log_filename is not None:
                 with open(self.log_filename, 'a') as f:
                     f.write(f"\nTrue human's confidence = {confidence}, confidence scalar = {confidence_scalar}")
@@ -399,10 +398,9 @@ class Human_Hypothesis():
         elif self.depth == 2:
             robot_rew, confidence = self.get_K_weighted_combination_vector()
 
-            confidence_scalar = 0.0
-            if confidence > 0.5:
-                confidence_scalar = 1.0
-            # confidence_scalar = 1.0
+            confidence_scalar = self.r_scalar / (1 + np.exp(-60 * (confidence - 0.5)))
+            # confidence_scalar = 1
+            # robot_rew_min = min(robot_rew)
             # robot_rew_min = min(robot_rew)
             # robot_rew = [elem - robot_rew_min for elem in robot_rew]
             # robot_rew_sum = sum(robot_rew)

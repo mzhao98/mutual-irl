@@ -254,10 +254,10 @@ def run_k_rounds(list_of_start_states, mm_order, seed, num_rounds, vi_type, true
 
     rof_game = RingOfFire(robot_agent, true_human_agent, list_of_start_states[0], log_filename)
     # rof_game.run_full_game()
+    n_rounds_plot = num_rounds+2
+    collective_scores = {x: [] for x in range(n_rounds_plot)}
 
-    collective_scores = {x: [] for x in range(num_rounds+1)}
-
-    fig, axs = plt.subplots(10, 6, figsize=(30, 28))
+    fig, axs = plt.subplots(n_rounds_plot, 6, figsize=(30, 28))
     # fig.tight_layout()
     fig.tight_layout(pad=5.0)
     # plt.subplots_adjust(wspace=None, hspace=None)
@@ -275,6 +275,17 @@ def run_k_rounds(list_of_start_states, mm_order, seed, num_rounds, vi_type, true
         rof_game.plot_robot_beliefs(axs[round, 1], axs[round, 2], axs[round, 3])
         rof_game.plot_true_human_beliefs(axs[round, 4], axs[round, 5])
 
+    for i in range(1, len(list_of_start_states)):
+        round_n = num_rounds + (i-1)
+        rof_game.reset_given_start(list_of_start_states[i])
+        total_rew, robot_history, human_history = rof_game.run_full_game(round_n)
+        collective_scores[num_rounds].append(total_rew)
+        rof_game.plot_game_actions(axs[round_n, 0], round_n, total_rew, robot_history, human_history)
+        rof_game.plot_robot_beliefs(axs[round_n, 1], axs[round_n, 2], axs[round_n, 3])
+        rof_game.plot_true_human_beliefs(axs[round_n, 4], axs[round_n, 5])
+
+
+
     savefolder = "exp_results/" + exp_path + '/' + vi_type + '/weights_imgs/' + mm_order + '/'
     plt.savefig(savefolder + 'multi_round_results.png')
     plt.close()
@@ -284,13 +295,13 @@ def run_k_rounds(list_of_start_states, mm_order, seed, num_rounds, vi_type, true
     #         f.write('\n')
     #     # print(f"round = {round}")
     #
-    #     rof_game.reset_given_start(list_of_start_states[1])
-    #     total_rew1 = rof_game.run_full_game()
-    #     print(f"total_rew for start {list_of_start_states[1]} = {total_rew1}")
-    #
-    #     rof_game.reset_given_start(list_of_start_states[2])
-    #     total_rew2 = rof_game.run_full_game()
-    #     print(f"total_rew for start {list_of_start_states[2]} = {total_rew2}")
+    # rof_game.reset_given_start(list_of_start_states[1])
+    # total_rew1 = rof_game.run_full_game(num_rounds)
+    # print(f"total_rew for start {list_of_start_states[1]} = {total_rew1}")
+    # #
+    # rof_game.reset_given_start(list_of_start_states[2])
+    # total_rew2 = rof_game.run_full_game(num_rounds+1)
+    # print(f"total_rew for start {list_of_start_states[2]} = {total_rew2}")
     #     collective_scores[num_rounds].append(total_rew1 + total_rew2)
 
     # print("Plotting Weight Updates")
@@ -409,12 +420,12 @@ def run_ablation():
     start_seed = 0
     number_of_seeds = 1
     true_human_order = 2
-    h_scalar = 10
+    h_scalar = 1
     r_scalar = 1
     # human_rewards = (0.25, 0.25, 0.25, 0.25)  # (0.9, -0.9, 0.1, 0.3)
     # robot_rewards = (0.9, 0.9, -0.9, -0.9)  # (0.9, 0.1, -0.9, 0.2)
-    # start_state = [2,2,2,2]
-    start_state = [2,6,2,2]
+    start_state = [2,2,2,2]
+    # start_state = [2,6,2,2]
     # human_rewards = (0.25, 0.25, 0.25, 0.25)  # (0.9, -0.9, 0.1, 0.3)
     # robot_rewards = (0.9, 0.9, -0.9, -0.9)  # (0.9, 0.1, -0.9, 0.2)
 
@@ -423,22 +434,22 @@ def run_ablation():
     # human_rewards = (-0.9, -0.5, 0.5, 1.0)
     # robot_rewards = (1.0, -0.9, 0.5, -0.5)
 
-    robot_rewards = (-0.9, -0.5, 0.5, 1.0)
-    human_rewards = (1.0, -0.9, 0.5, -0.5)
-    # robot_rewards = (1, 1.1, 3, 1)
-    # human_rewards = (1, 3, 1.1, 1)
+    # robot_rewards = (-0.9, -0.5, 0.5, 1.0)
+    # human_rewards = (1.0, -0.9, 0.5, -0.5)
+    robot_rewards = (1, 1.1, 3, 1)
+    human_rewards = (1, 3, 1.1, 1)
 
-    list_of_start_states = [start_state]
+    list_of_start_states = [start_state, [1,1,0,0], [0,0,1,1]]
     # human_rewards = (-0.5, -0.9, 1.0, 0.5)
     # robot_rewards = (0.2, 0.1, -0.2, 0.9)
     # human_rewards = (0.4, 0.3, -0.1, -0.1)
 
     num_particles = 500
-    num_rounds = 10
+    num_rounds = 3
     vi_types = ['mmvi', 'stdvi']
     # vi_types = ['mmvi']
 
-    path = f"DEBUG7_start-{start_state}_hscalar-{h_scalar}_rscalar-{r_scalar}_Hrew-{human_rewards}_Rrew-{robot_rewards}_horder-{true_human_order}_nparticles-{num_particles}_nrounds-{num_rounds}_nseeds-{number_of_seeds}_startseed-{start_seed}"
+    path = f"DEBUG8_start-{start_state}_hscalar-{h_scalar}_rscalar-{r_scalar}_Hrew-{human_rewards}_Rrew-{robot_rewards}_horder-{true_human_order}_nparticles-{num_particles}_nrounds-{num_rounds}_nseeds-{number_of_seeds}_startseed-{start_seed}"
     # Check whether the specified path exists or not
     isExist = os.path.exists("exp_results/" + path)
     if not isExist:
