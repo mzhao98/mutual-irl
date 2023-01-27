@@ -28,7 +28,8 @@ def compute_optimal_rew(first_player, start_state, all_colors_list, task_reward,
     rew = himdp.rollout_full_game_vi_policy()
     human_best_rew = himdp.compute_max_human_reward()
     robot_best_rew = himdp.compute_max_robot_reward()
-    return rew, human_best_rew, robot_best_rew
+    altruism_case = himdp.compare_opt_to_greedy()
+    return rew, human_best_rew, robot_best_rew, altruism_case
 
 def run_exp_config(first_player, start_state, all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho, vi_type):
     himdp = HiMDP(start_state, all_colors_list, task_reward, human_rew, h_rho, None, robot_rew, robot_rew, r_rho, vi_type)
@@ -158,14 +159,16 @@ def run_k_rounds(exp_num, all_colors_list, task_reward, r_rho, h_rho_of_interest
     if sum(start_state) % 2 == 1:
         start_state[-1] -= 1
     all_colors_list = [BLUE, GREEN, RED, YELLOW]
-    human_rew = [np.random.uniform(0.1, 20.0), np.random.uniform(0.1, 20.0), np.random.uniform(0.1, 20.0),
-                 np.random.uniform(0.1, 20.0)]
+    human_rew = [np.round(np.random.uniform(0.1, 20.0),2),
+                 np.round(np.random.uniform(0.1, 20.0),2),
+                 np.round(np.random.uniform(0.1, 20.0),2),
+                 np.round(np.random.uniform(0.1, 20.0),2)]
     permutes = list(itertools.permutations(human_rew))
     # print("permutes",permutes)
     robot_rew = list(permutes[np.random.choice(np.arange(len(permutes)))])
 
     for h_rho in [h_rho_of_interest]:
-        optimal_rew, best_human_rew, best_robot_rew = compute_optimal_rew(first_player, start_state, all_colors_list,
+        optimal_rew, best_human_rew, best_robot_rew, altruism_case = compute_optimal_rew(first_player, start_state, all_colors_list,
                                                                           task_reward,
                                                                           human_rew, h_rho, robot_rew, r_rho)
         cvi_rew, cvi_human_rew, cvi_robot_rew = run_exp_config(first_player, start_state, all_colors_list, task_reward, human_rew,
@@ -190,12 +193,81 @@ def run_k_rounds(exp_num, all_colors_list, task_reward, r_rho, h_rho_of_interest
         cvi_percent_of_opt_robot = cvi_robot_rew / best_robot_rew
         stdvi_percent_of_opt_robot = stdvi_robot_rew / best_robot_rew
 
-
+    print("done with exp_num = ", exp_num)
     return cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
-           cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot
+           cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case
+
+def check_greedy_opt(exp_num, all_colors_list, task_reward, r_rho, h_rho_of_interest):
+    print("exp_num = ", exp_num)
+
+    first_player = np.random.choice(['r', 'h'])
+    # first_player = 'r'
+    start_state = [np.random.randint(1, 5), np.random.randint(1, 5), np.random.randint(1, 5),
+                   np.random.randint(1, 5)]
+    if sum(start_state) % 2 == 1:
+        start_state[-1] -= 1
+    all_colors_list = [BLUE, GREEN, RED, YELLOW]
+    human_rew = [np.round(np.random.uniform(0.1, 20.0),2),
+                 np.round(np.random.uniform(0.1, 20.0),2),
+                 np.round(np.random.uniform(0.1, 20.0),2),
+                 np.round(np.random.uniform(0.1, 20.0),2)]
+    permutes = list(itertools.permutations(human_rew))
+    # print("permutes",permutes)
+    robot_rew = list(permutes[np.random.choice(np.arange(len(permutes)))])
+
+    for h_rho in [h_rho_of_interest]:
+        optimal_rew, best_human_rew, best_robot_rew, altruism_case = compute_optimal_rew(first_player, start_state, all_colors_list,
+                                                                          task_reward,
+                                                                          human_rew, h_rho, robot_rew, r_rho)
+
+    return altruism_case
 
 
-if __name__ == "__main__":
+
+
+def check_altruism():
+
+    # start_state = [2, 2, 2, 2]
+    all_colors_list = [BLUE, GREEN, RED, YELLOW]
+    task_reward = [1, 1, 1, 1]
+    # human_rew = [0.5, 0.1, 0.5, 0.1]
+    # h_rho = 0
+    # robot_rew = [0.5, 0.5, 0.1, 0.1]
+    r_rho = 1
+    # vi_type = 'stdvi'
+
+    cvi_percents = {0: [], 1: []}
+    stdvi_percents = {0: [], 1: []}
+
+    cvi_humanrew_percents = {0: [], 1: []}
+    stdvi_humanrew_percents = {0: [], 1: []}
+
+    cvi_robotrew_percents = {0: [], 1: []}
+    stdvi_robotrew_percents = {0: [], 1: []}
+
+    num_exps = 1000
+
+    h_rho_of_interest = 0
+
+    n_altruism = 0
+    n_total = 0
+    n_greedy = 0
+    with Pool(processes=100) as pool:
+        k_round_results = pool.starmap(check_greedy_opt, [(exp_num, all_colors_list, task_reward, r_rho, h_rho_of_interest) for exp_num in range(num_exps)])
+        for result in k_round_results:
+            altruism_case = result
+
+            if altruism_case == 'opt':
+                n_greedy += 1
+            if altruism_case == 'subopt':
+                n_altruism += 1
+            n_total += 1
+    print("n_altruism = ", n_altruism)
+    print("n_greedy = ", n_greedy)
+    print("n_total = ", n_total)
+
+
+def run_experiment():
 
     # start_state = [2, 2, 2, 2]
     all_colors_list = [BLUE, GREEN, RED, YELLOW]
@@ -218,11 +290,29 @@ if __name__ == "__main__":
     num_exps = 100
 
     h_rho_of_interest = 0
+
+    n_altruism = 0
+    n_total = 0
+    n_greedy = 0
+
+    percent_change = {}
+    for percent in np.arange(-1.0, 1.01, step=0.01):
+        percent_change[np.round(percent,2)] = 0
+
     with Pool(processes=100) as pool:
         k_round_results = pool.starmap(run_k_rounds, [(exp_num, all_colors_list, task_reward, r_rho, h_rho_of_interest) for exp_num in range(num_exps)])
         for result in k_round_results:
             cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
-            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot = result
+            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case = result
+
+            if altruism_case == 'opt':
+                n_greedy += 1
+            if altruism_case == 'subopt':
+                n_altruism += 1
+            n_total += 1
+
+            if altruism_case == 'opt':
+                continue
 
             cvi_percents[h_rho_of_interest].append(cvi_percent_of_opt_team)
             stdvi_percents[h_rho_of_interest].append(stdvi_percent_of_opt_team)
@@ -232,6 +322,11 @@ if __name__ == "__main__":
 
             cvi_robotrew_percents[h_rho_of_interest].append(cvi_percent_of_opt_robot)
             stdvi_robotrew_percents[h_rho_of_interest].append(stdvi_percent_of_opt_robot)
+
+            diff = cvi_percent_of_opt_team - stdvi_percent_of_opt_team
+            diff = np.round(diff, 2)
+            print("percent_change = ", percent_change)
+            percent_change[diff] += 1
 
 
     teamrew_means = [np.round(np.mean(cvi_percents[0]), 2), np.round(np.mean(stdvi_percents[0]), 2)]
@@ -250,6 +345,31 @@ if __name__ == "__main__":
     print("robot rew stat results: ",
           stats.ttest_ind([elem * 100 for elem in cvi_robotrew_percents[0]],
                           [elem * 100 for elem in cvi_robotrew_percents[0]]))
+
+    print("n_altruism = ", n_altruism)
+    print("n_greedy = ", n_greedy)
+    print("n_total = ", n_total)
+
+    X = [d for d in percent_change]
+    sum_Y = sum([percent_change[d] for d in percent_change])
+    Y = [percent_change[d]/sum_Y for d in percent_change]
+
+    # Compute the CDF
+    CY = np.cumsum(Y)
+
+    # Plot both
+    # fig, ax = plt.subplots(figsize=(5, 5))
+    plt.plot(X, Y, label='Diff PDF')
+    plt.plot(X, CY, 'r--', label='Diff CDF')
+    plt.xlabel("% of Opt CVI - % of Opt StdVI")
+
+    plt.legend()
+    plt.savefig("greedy_public_iterative_100_multiprocess_cdf.png")
+    plt.show()
+
+
+
+
 
 
     # collab_means = [np.round(np.mean(cvi_percents[1]), 2), np.round(np.mean(stdvi_percents[1]), 2)]
@@ -289,7 +409,10 @@ if __name__ == "__main__":
     autolabel(ax, rects3, "right")
 
     fig.tight_layout()
-    plt.savefig("greedy_public_iterative_100_multiprocess.png")
+    plt.savefig("greedy_public_iterative_100_multiprocess_testingcases.png")
     plt.show()
 
+
+if __name__ == "__main__":
+    run_experiment()
 

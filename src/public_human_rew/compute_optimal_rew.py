@@ -451,6 +451,88 @@ class OptimalMDP:
 
         return total_reward
 
+    def rollout_full_game_both_greedy(self):
+        # print("policy", policy)
+        self.reset()
+        done = False
+        total_reward = 0
+
+        turn = copy.deepcopy(self.first_player)
+        while not done:
+        # for i in range(10):
+            current_state = copy.deepcopy(self.state)
+
+            if turn == 'r':
+                action = None
+                best_rew = -100
+                for color in self.all_colors_list:
+                    if current_state[color] > 0:
+                        if self.robot_rew[color] > best_rew:
+                            best_rew = self.robot_rew[color]
+                            action = color
+
+                next_state = copy.deepcopy(current_state)
+                next_state[action] -= 1
+                rew = self.robot_rew[action]
+                done = sum(next_state[:-1]) == 0
+                self.state = next_state
+                total_reward += rew
+                turn = 'h'
+
+            else:
+                action = None
+                best_rew = -100
+                for color in self.all_colors_list:
+                    if current_state[color] > 0:
+                        if self.human_rew[color] > best_rew:
+                            best_rew = self.human_rew[color]
+                            action = color
+
+                next_state = copy.deepcopy(current_state)
+                next_state[action] -= 1
+                rew = self.human_rew[action]
+                done = sum(next_state[:-1]) == 0
+                self.state = next_state
+                total_reward += rew
+                turn = 'r'
+
+
+        return total_reward
+
+    def compare_opt_to_greedy(self):
+        greedy_rew = self.rollout_full_game_both_greedy()
+        opt_rew = self.rollout_full_game_vi_policy()
+
+        greedy_rew = np.round(greedy_rew, 2)
+        opt_rew = np.round(opt_rew, 2)
+        # if opt_rew < greedy_rew:
+        #     print()
+        #     print("PROBLEM AT")
+        #     print("start state", self.start_state)
+        #     print("first_player", self.first_player)
+        #     print("human rew", self.human_rew)
+        #     print("robot rew", self.robot_rew)
+        #     print("opt_rew = ", opt_rew)
+        #     print("greedy_rew = ", greedy_rew)
+        #     print()
+        print(f"opt rew = {opt_rew}, greedy = {greedy_rew}")
+        if opt_rew < greedy_rew:
+            print()
+            print("PROBLEM AT")
+            print("start state", self.start_state)
+            print("first_player", self.first_player)
+            print("human rew", self.human_rew)
+            print("robot rew", self.robot_rew)
+            print("opt_rew = ", opt_rew)
+            print("greedy_rew = ", greedy_rew)
+            assert opt_rew >= greedy_rew
+        if opt_rew > greedy_rew:
+            print('subopt')
+            return 'subopt'
+        print("opt")
+        return 'opt'
+
+
 
 if __name__ == "__main__":
     start_state = [2, 2, 2, 2]

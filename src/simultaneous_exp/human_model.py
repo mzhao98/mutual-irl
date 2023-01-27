@@ -9,8 +9,6 @@ import matplotlib.pyplot as plt
 import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
-from robot_model import Robot
-from human_model import Human
 
 BLUE = 0
 GREEN = 1
@@ -23,30 +21,20 @@ import json
 import sys
 import os
 
-COLOR_TO_TEXT = {BLUE: 'blue', GREEN:'green', RED:'red', YELLOW:'yellow', None:'none'}
-
-class Toy():
-    def __init__(self, color, weight):
-        self.color = color
-        self.weight = weight
 
 
-class Player:
-    def __init__(self, rew):
-        self.ind_rew = rew
-
-
-
-class Simultaneous_Cleanup():
-    def __init__(self, robot, human, starting_objects):
-        self.robot = robot
-        self.human = human
+class Human:
+    def __init__(self, ind_rew, true_robot_rew, starting_state):
+        self.ind_rew = ind_rew
+        self.true_robot_rew = true_robot_rew
+        if self.true_robot_rew is not None:
+            self.robot_rew = copy.deepcopy(self.true_robot_rew)
 
         self.total_reward = {'team': 0, 'robot': 0, 'human': 0}
         self.state_remaining_objects = {}
         self.possible_actions = [None]
 
-        self.starting_objects = starting_objects
+        self.starting_objects = starting_state
         self.reset()
 
         # set value iteration components
@@ -69,6 +57,12 @@ class Simultaneous_Cleanup():
             else:
                 self.state_remaining_objects[obj_tuple] += 1
 
+
+    def is_done(self):
+        if sum(self.state_remaining_objects.values()) == 0:
+            return True
+        return False
+
     def get_all_possible_joint_actions(self):
         possible_joint_actions = []
         for r_act in self.possible_actions:
@@ -77,23 +71,17 @@ class Simultaneous_Cleanup():
                 possible_joint_actions.append(joint_action)
         return possible_joint_actions
 
-    def is_done(self):
-        if sum(self.state_remaining_objects.values()) == 0:
-            return True
-        return False
-
     def resolve_heavy_pickup(self, rh_action):
-        robot_rew, human_rew = 0,0
+        robot_rew, human_rew = 0, 0
         if rh_action in self.state_remaining_objects and self.state_remaining_objects[rh_action] > 0:
             self.state_remaining_objects[rh_action] -= 1
-            robot_rew = self.robot.ind_rew[rh_action]
-            human_rew = self.human.ind_rew[rh_action]
+            robot_rew = self.ind_rew[rh_action]
+            human_rew = self.human_rew[rh_action]
 
         self.total_reward['team'] += (robot_rew + human_rew)
         self.total_reward['robot'] += robot_rew
         self.total_reward['human'] += human_rew
         return (robot_rew + human_rew), robot_rew, human_rew
-
 
     def resolve_two_agents_same_item(self, robot_action, human_action):
         (robot_action_color, robot_action_weight) = robot_action
@@ -104,8 +92,8 @@ class Simultaneous_Cleanup():
                 robot_rew, human_rew = -1, -1
             elif self.state_remaining_objects[robot_action] == 1:
                 self.state_remaining_objects[robot_action] -= 1
-                robot_rew = self.robot.ind_rew[robot_action]
-                human_rew = self.human.ind_rew[human_action]
+                robot_rew = self.ind_rew[robot_action]
+                human_rew = self.human_rew[human_action]
                 pickup_agent = np.random.choice(['r', 'h'])
                 if pickup_agent == 'r':
                     human_rew = -1
@@ -114,8 +102,8 @@ class Simultaneous_Cleanup():
             else:
                 self.state_remaining_objects[robot_action] -= 1
                 self.state_remaining_objects[human_action] -= 1
-                robot_rew = self.robot.ind_rew[robot_action]
-                human_rew = self.human.ind_rew[human_action]
+                robot_rew = self.ind_rew[robot_action]
+                human_rew = self.human_rew[human_action]
 
         self.total_reward['team'] += (robot_rew + human_rew)
         self.total_reward['robot'] += robot_rew
@@ -133,14 +121,14 @@ class Simultaneous_Cleanup():
             if robot_action_weight == 0:
                 if self.state_remaining_objects[robot_action] > 0:
                     self.state_remaining_objects[robot_action] -= 1
-                    robot_rew = self.robot.ind_rew[robot_action]
+                    robot_rew = self.ind_rew[robot_action]
 
         if human_action is not None and human_action in self.state_remaining_objects:
             (human_action_color, human_action_weight) = human_action
             if human_action_weight == 0:
                 if self.state_remaining_objects[human_action] > 0:
                     self.state_remaining_objects[human_action] -= 1
-                    human_rew = self.human.ind_rew[human_action]
+                    human_rew = self.human_rew[human_action]
 
         self.total_reward['team'] += (robot_rew + human_rew)
         self.total_reward['robot'] += robot_rew
@@ -148,36 +136,9 @@ class Simultaneous_Cleanup():
         return (robot_rew + human_rew), robot_rew, human_rew
 
 
-    def step(self, joint_action):
-
-        robot_action = joint_action['robot']
-
-        human_action = joint_action['human']
-        # (human_action_color, human_action_weight) = human_action
-
-        if robot_action == human_action and robot_action is not None:
-            # collaborative pick up object
-            (robot_action_color, robot_action_weight) = robot_action
-            if robot_action_weight == 1:
-                team_rew, robot_rew, human_rew = self.resolve_heavy_pickup(robot_action)
-
-            # single pick up object
-            else:
-                team_rew, robot_rew, human_rew = self.resolve_two_agents_same_item(robot_action, human_action)
-
-        else:
-            team_rew, robot_rew, human_rew = self.resolve_two_agents_diff_item(robot_action, human_action)
-
-        done = self.is_done()
-        return (team_rew, robot_rew, human_rew), done
-
-
     def step_given_state(self, input_state, joint_action):
         state_remaining_objects = copy.deepcopy(input_state)
-
-
         robot_action = joint_action['robot']
-
         human_action = joint_action['human']
 
         robot_rew, human_rew = -1, -1
@@ -188,8 +149,8 @@ class Simultaneous_Cleanup():
                 if robot_action in state_remaining_objects:
                     if robot_action in self.state_remaining_objects and state_remaining_objects[robot_action] > 0:
                         state_remaining_objects[robot_action] -= 1
-                        robot_rew = self.robot.ind_rew[robot_action]
-                        human_rew = self.human.ind_rew[robot_action]
+                        robot_rew = self.ind_rew[robot_action]
+                        human_rew = self.human_rew[robot_action]
 
             # single pick up object
             else:
@@ -198,8 +159,8 @@ class Simultaneous_Cleanup():
                         robot_rew, human_rew = 0, 0
                     elif state_remaining_objects[robot_action] == 1:
                         state_remaining_objects[robot_action] -= 1
-                        robot_rew = self.robot.ind_rew[robot_action]
-                        human_rew = self.human.ind_rew[human_action]
+                        robot_rew = self.ind_rew[robot_action]
+                        human_rew = self.human_rew[human_action]
                         pickup_agent = np.random.choice(['r', 'h'])
                         if pickup_agent == 'r':
                             human_rew = -1
@@ -208,32 +169,29 @@ class Simultaneous_Cleanup():
                     else:
                         state_remaining_objects[robot_action] -= 1
                         state_remaining_objects[human_action] -= 1
-                        robot_rew = self.robot.ind_rew[robot_action]
-                        human_rew = self.human.ind_rew[human_action]
+                        robot_rew = self.ind_rew[robot_action]
+                        human_rew = self.human_rew[human_action]
 
         else:
-
-
             if robot_action is not None and robot_action in state_remaining_objects:
                 (robot_action_color, robot_action_weight) = robot_action
                 if robot_action_weight == 0:
                     if state_remaining_objects[robot_action] > 0:
                         state_remaining_objects[robot_action] -= 1
-                        robot_rew = self.robot.ind_rew[robot_action]
+                        robot_rew = self.ind_rew[robot_action]
 
             if human_action is not None and human_action in state_remaining_objects:
                 (human_action_color, human_action_weight) = human_action
                 if human_action_weight == 0:
                     if state_remaining_objects[human_action] > 0:
                         state_remaining_objects[human_action] -= 1
-                        human_rew = self.human.ind_rew[human_action]
+                        human_rew = self.human_rew[human_action]
 
         done = False
         if sum(state_remaining_objects.values()) == 0:
             done = True
         team_rew = robot_rew + human_rew
         return state_remaining_objects, (team_rew, robot_rew, human_rew), done
-
 
     def state_to_tuple(self, remaining_objs_dict):
         remaining_objs = []
@@ -307,8 +265,8 @@ class Simultaneous_Cleanup():
         #     for j in range(len(actions)):
         #         print("np.sum(transition_mat[i, :, j])", np.sum(transition_mat[i, :, j]))
         #         print("np.sum(transition_mat[i, :, j]", np.sum(transition_mat[i, :, j]))
-                # assert np.isclose(np.sum(transition_mat[i, :, j]), 1.0) or np.isclose(np.sum(transition_mat[i, :, j]),
-                #                                                                       0.0)
+        # assert np.isclose(np.sum(transition_mat[i, :, j]), 1.0) or np.isclose(np.sum(transition_mat[i, :, j]),
+        #                                                                       0.0)
         self.transitions, self.rewards, self.state_to_idx, \
         self.idx_to_action, self.idx_to_state, self.action_to_idx = transition_mat, reward_mat, state_to_idx, \
                                                                     idx_to_action, idx_to_state, action_to_idx
@@ -371,23 +329,39 @@ class Simultaneous_Cleanup():
 
                 else:
                     # compute new Q values
-                    for action_idx in range(n_actions):
-                        # check joint action
-                        joint_action = self.idx_to_action[action_idx]
-                        joint_action = {'robot':joint_action[0], 'human':joint_action[1]}
+                    max_reward = -100
+                    best_human_act = []
+                    for candidate_h_act in self.possible_actions:
+                        if current_state_remaining_objects[candidate_h_act] > 0:
+                            candidate_rew = self.human_rew[candidate_h_act]
+                            if candidate_rew > max_reward:
+                                max_reward = candidate_rew
+                                if candidate_h_act not in best_human_act:
+                                    best_human_act.append(candidate_h_act)
 
-                        # print("current_state_remaining_objects = ", current_state_remaining_objects)
-                        # print("joint_action = ", joint_action)
-                        next_state, (r_sa, robot_rew, human_rew), done = self.step_given_state(current_state_remaining_objects, joint_action)
-                        # print(f"current_state = ", current_state_remaining_objects)
-                        # print("action=  ", joint_action)
-                        # print("r_sa = ", r_sa)
-                        # print("next_state = ", next_state)
-                        # print("done = ", done)
-                        # print()
+                    for r_act in self.possible_actions:
+                        for h_act in self.possible_actions:
+                            joint_action = {'robot': r_act, 'human': h_act}
+                            # check joint action
+                            # prob_of_h_act = 0
+                            if h_act in best_human_act:
+                                prob_of_h_act = 0.9
+                            else:
+                                prob_of_h_act = 0.1
 
-                        s11 = self.state_to_idx[self.state_to_tuple(next_state)]
-                        Q[s, action_idx] = r_sa + (self.gamma * vf[s11])
+
+                            next_state, (r_sa, robot_rew, human_rew), done = self.step_given_state(
+                                current_state_remaining_objects, joint_action)
+                            # print(f"current_state = ", current_state_remaining_objects)
+                            # print("action=  ", joint_action)
+                            # print("r_sa = ", r_sa)
+                            # print("next_state = ", next_state)
+                            # print("done = ", done)
+                            # print()
+                            r_sa = prob_of_h_act * r_sa
+                            s11 = self.state_to_idx[self.state_to_tuple(next_state)]
+                            action_idx = self.action_to_idx((r_act, h_act))
+                            Q[s, action_idx] = r_sa + (self.gamma * vf[s11])
 
                 vf[s] = np.max(Q[s, :], 0)
 
@@ -413,18 +387,49 @@ class Simultaneous_Cleanup():
                     current_state_remaining_objects[obj_tuple] = 1
                 else:
                     current_state_remaining_objects[obj_tuple] += 1
+            for obj_tuple in self.possible_actions:
+                if obj_tuple not in current_state_remaining_objects:
+                    current_state_remaining_objects[obj_tuple] = 0
 
-            # compute new Q values
-            for action_idx in range(n_actions):
-                # check joint action
-                joint_action = self.idx_to_action[action_idx]
-                joint_action = {'robot': joint_action[0], 'human': joint_action[1]}
+            if len(current_state_remaining_objects) == 0 or sum(current_state_remaining_objects.values()) == 0:
+                # for action_idx in range(n_actions):
+                action_idx = self.action_to_idx[(None, None)]
+                Q[s, action_idx] = vf[s]
 
-                next_state, (r_sa, robot_rew, human_rew), done = self.step_given_state(current_state_remaining_objects,
-                                                                                       joint_action)
+            else:
+                # compute new Q values
+                max_reward = -100
+                best_human_act = []
+                for candidate_h_act in self.possible_actions:
+                    if current_state_remaining_objects[candidate_h_act] > 0:
+                        candidate_rew = self.human_rew[candidate_h_act]
+                        if candidate_rew > max_reward:
+                            max_reward = candidate_rew
+                            if candidate_h_act not in best_human_act:
+                                best_human_act.append(candidate_h_act)
 
-                s11 = self.state_to_idx[self.state_to_tuple(next_state)]
-                Q[s, action_idx] = r_sa + (self.gamma * vf[s11])
+                for r_act in self.possible_actions:
+                    for h_act in self.possible_actions:
+                        joint_action = {'robot': r_act, 'human': h_act}
+                        # check joint action
+                        # prob_of_h_act = 0
+                        if h_act in best_human_act:
+                            prob_of_h_act = 0.9
+                        else:
+                            prob_of_h_act = 0.1
+
+                        next_state, (r_sa, robot_rew, human_rew), done = self.step_given_state(
+                            current_state_remaining_objects, joint_action)
+                        # print(f"current_state = ", current_state_remaining_objects)
+                        # print("action=  ", joint_action)
+                        # print("r_sa = ", r_sa)
+                        # print("next_state = ", next_state)
+                        # print("done = ", done)
+                        # print()
+                        r_sa = prob_of_h_act * r_sa
+                        s11 = self.state_to_idx[self.state_to_tuple(next_state)]
+                        action_idx = self.action_to_idx((r_act, h_act))
+                        Q[s, action_idx] = r_sa + (self.gamma * vf[s11])
 
             pi[s] = np.argmax(Q[s, :], 0)
             policy[s] = Q[s, :]
@@ -435,140 +440,28 @@ class Simultaneous_Cleanup():
         # print("self.pi", self.pi)
         return vf, pi
 
-    def rollout_full_game_joint_optimal(self):
-        self.reset()
-        done = False
-        total_reward = 0
 
-        human_trace = []
-        robot_trace = []
-        human_greedy_alt = []
-        robot_greedy_alt = []
-        iters = 0
-        while not done:
-            iters += 1
-        # for i in range(10):
-            current_state = copy.deepcopy(self.state_remaining_objects)
-            # print(f"current_state = {current_state}")
-            current_state_tup = self.state_to_tuple(current_state)
+    def act(self, state):
+        best_human_act = []
+        max_reward = -100
+        for candidate_h_act in self.possible_actions:
+            if candidate_h_act is not None:
+                if state[candidate_h_act] > 0:
+                    candidate_rew = self.ind_rew[candidate_h_act]
+                    if candidate_rew == max_reward:
+                        if candidate_h_act not in best_human_act:
+                            best_human_act.append(candidate_h_act)
 
-            # print("availabel actions", self.get_possible_actions(current_state))
-            state_idx = self.state_to_idx[current_state_tup]
-
-            action_distribution = self.policy[state_idx]
-            action = np.argmax(action_distribution)
-            action = self.idx_to_action[action]
-
-            # print("action_distribution = ", action_distribution)
-            # print("action", action)
-
-            action = {'robot': action[0], 'human': action[1]}
-
-            next_state, (team_rew, robot_rew, human_rew), done = self.step_given_state(current_state, action)
-            self.state_remaining_objects = next_state
-            # print(f"current_state = ", current_state)
-            # print("action=  ", action)
-            # print("team_rew = ", team_rew)
-            # print("next_state = ", next_state)
-            # print("done = ", done)
-            # print()
+                    elif candidate_rew > max_reward:
+                        max_reward = candidate_rew
+                        best_human_act = [candidate_h_act]
 
 
-            # print(
-            # f"current_state= {current_state}, next_state={next_state}, rew={rew}, is done = {done}")
-
-            total_reward += team_rew
-
-            if iters > 10:
-                break
-
-        return total_reward
-
-    def rollout_full_game_two_agents(self):
-        self.reset()
-        done = False
-        total_reward = 0
-
-        iters = 0
-        while not done:
-            iters += 1
-            current_state = copy.deepcopy(self.state_remaining_objects)
-
-            robot_action = self.robot.act(current_state)
-            human_action = self.human.act(current_state)
-
-            action = {'robot': robot_action, 'human': human_action}
-
-            (team_rew, robot_rew, human_rew), done = self.step(action)
-            # print(f"current_state = ", current_state)
-            # print("action=  ", action)
-            # print("team_rew = ", team_rew)
-            # print("next_state = ", self.state_remaining_objects)
-            # print("done = ", done)
-            # print()
-            total_reward += team_rew
-
-            if iters > 10:
-                print("SOMETHING IS BROKEN")
-                break
-
-        return total_reward
-
-    def compute_optimal_performance(self):
-        self.enumerate_states()
-        self.value_iteration()
-
-        optimal_rew = self.rollout_full_game_joint_optimal()
-        return optimal_rew
+        if len(best_human_act) == 0:
+            h_action = None
+        else:
+            # h_action = best_human_act[np.random.choice(range(len(best_human_act)))]
+            h_action = best_human_act[0]
+        return h_action
 
 
-
-
-def test_optimal():
-    robot = Player({(BLUE, 0): 2, (RED,0): 3, (GREEN, 0):1, (YELLOW, 0):1,
-                    (BLUE, 1): 4, (RED,1): 6, (GREEN, 1):4, (YELLOW, 1):5})
-    human = Player({(BLUE, 0): 2, (RED,0): 1, (GREEN, 0):2, (YELLOW, 0):3,
-                    (BLUE, 1): 4, (RED,1): 3, (GREEN, 1):6, (YELLOW, 1):3})
-
-    starting_objects = [(BLUE, 0),(YELLOW, 0),(BLUE, 0),(RED, 0),
-                        (BLUE, 1),(BLUE, 1),(GREEN, 1),(RED, 1),
-                        (YELLOW, 0),(GREEN, 0),(BLUE, 0),(RED, 0)]
-    env = Simultaneous_Cleanup(robot, human, starting_objects)
-    opt = env.compute_optimal_performance()
-    print("opt = ", opt)
-
-
-if __name__ == '__main__':
-    robot_rew = {(BLUE, 0): 2, (RED, 0): 3, (GREEN, 0): 1, (YELLOW, 0): 1,
-                (BLUE, 1): 4, (RED, 1): 6, (GREEN, 1): -1, (YELLOW, 1): -1}
-
-    human_rew = {(BLUE, 0): 2, (RED, 0): 1, (GREEN, 0): 2, (YELLOW, 0): 3,
-                (BLUE, 1): 4, (RED, 1): 3, (GREEN, 1): 6, (YELLOW, 1): 3}
-
-    starting_objects = [(BLUE, 0), (YELLOW, 0), (BLUE, 0), (RED, 0),
-                        (BLUE, 1), (BLUE, 1), (GREEN, 1), (RED, 1),
-                        (YELLOW, 0), (GREEN, 0), (BLUE, 0), (YELLOW, 1)]
-
-    # starting_objects = [(BLUE, 0), (YELLOW, 0),  (GREEN, 1), (RED, 1), (YELLOW, 1)]
-
-    robot = Robot(robot_rew, human_rew, starting_objects, vi_type='cvi')
-    human = Human(human_rew, robot_rew, starting_objects)
-
-    robot.setup_value_iteration()
-
-
-    # human = Robot(robot_rew, human_rew, starting_objects)
-    env = Simultaneous_Cleanup(robot, human, starting_objects)
-    final_team_rew = env.rollout_full_game_two_agents()
-    print("CVI final_team_rew = ", final_team_rew)
-
-    robot = Robot(robot_rew, human_rew, starting_objects, vi_type='stdvi')
-    human = Human(human_rew, robot_rew, starting_objects)
-    robot.setup_value_iteration()
-    env = Simultaneous_Cleanup(robot, human, starting_objects)
-    final_team_rew = env.rollout_full_game_two_agents()
-    print("StdVI final_team_rew = ", final_team_rew)
-
-    env = Simultaneous_Cleanup(robot, human, starting_objects)
-    opt = env.compute_optimal_performance()
-    print("opt = ", opt)
