@@ -40,7 +40,8 @@ class HiMDP:
 
         self.human_believed_robot_rew = None
         self.humans_beliefs = None
-        self.human_believed_robot_rew = human_believed_robot_rew
+        # self.human_believed_robot_rew = human_believed_robot_rew
+        self.human_believed_robot_rew = true_robot_rew
         self.humans_beliefs = humans_beliefs
 
         self.r_rho = r_rho

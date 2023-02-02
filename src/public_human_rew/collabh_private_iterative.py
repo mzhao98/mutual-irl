@@ -58,7 +58,8 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 class RingOfFire():
-    def __init__(self, robot, human, start_state, log_filename='', to_plot=False):
+    def __init__(self, first_player, robot, human, start_state, log_filename='', to_plot=False):
+        self.first_player = first_player
         self.robot = robot
         self.human = human
         self.log_filename = log_filename
@@ -91,7 +92,7 @@ class RingOfFire():
             return True
         return False
 
-    def step(self, iteration, no_update=False):
+    def step_old(self, iteration, no_update=False):
         # have the robot act
         # pdb.set_trace()
         # with open(self.log_filename, 'a') as f:
@@ -139,6 +140,96 @@ class RingOfFire():
 
         return self.state, rew, rew_pair, self.is_done(), robot_action, human_action
 
+    def step(self, iteration, no_update=False):
+        # have the robot act
+        # pdb.set_trace()
+        # with open(self.log_filename, 'a') as f:
+        #     f.write(f"\n\nCurrent state = {self.state}")
+
+        if self.first_player == 'r':
+            robot_action = self.robot.act(self.state, iteration)
+
+            # update state and human's model of robot
+            robot_state = copy.deepcopy(self.state)
+            rew = 0
+            rew_pair = [0, 0]
+            if self.state[robot_action] > 0:
+                self.state[robot_action] -= 1
+                rew += self.robot.ind_rew[robot_action]
+                rew_pair[0] = self.robot.ind_rew[robot_action]
+
+            # if no_update is False:
+            # self.human.update_with_partner_action(robot_state, robot_action)
+            # self.robot.update_human_models_with_robot_action(robot_state, robot_action)
+            # self.robot_history.append(robot_action)
+
+            if self.is_done() is False:
+                # have the human act
+                human_action = self.human.act(self.state)
+
+                # update state and human's model of robot
+                human_state = copy.deepcopy(self.state)
+                if self.state[human_action] > 0:
+                    self.state[human_action] -= 1
+                    rew += self.human.ind_rew[human_action]
+                    rew_pair[1] = self.human.ind_rew[human_action]
+
+                # if no_update is False:
+                # update_flag = self.is_done()
+                update_flag = False
+                self.human.update_beliefs_of_robot_with_robot_action(robot_state, robot_action, update_flag)
+                self.robot.update_human_beliefs_of_robot_with_robot_action(robot_state, robot_action, update_flag)
+                self.robot_history.append(robot_action)
+
+                self.robot.update_robots_human_models_with_human_action(human_state, human_action, update_flag)
+                self.human_history.append(human_action)
+
+            else:
+                human_action = None
+        else:
+            rew = 0
+            rew_pair = [0, 0]
+
+            # have the human act
+            human_action = self.human.act(self.state)
+
+            # update state and human's model of robot
+            human_state = copy.deepcopy(self.state)
+            if self.state[human_action] > 0:
+                self.state[human_action] -= 1
+                rew += self.human.ind_rew[human_action]
+                rew_pair[0] = self.human.ind_rew[human_action]
+
+            # if no_update is False:
+            # update_flag = self.is_done()
+            update_flag = False
+
+
+            self.robot.update_robots_human_models_with_human_action(human_state, human_action, update_flag)
+            self.human_history.append(human_action)
+
+            if self.is_done() is False:
+
+
+                robot_action = self.robot.act(self.state, iteration)
+
+                # update state and human's model of robot
+                robot_state = copy.deepcopy(self.state)
+
+                if self.state[robot_action] > 0:
+                    self.state[robot_action] -= 1
+                    rew += self.robot.ind_rew[robot_action]
+                    rew_pair[1] = self.robot.ind_rew[robot_action]
+
+                self.human.update_beliefs_of_robot_with_robot_action(robot_state, robot_action, update_flag)
+                self.robot.update_human_beliefs_of_robot_with_robot_action(robot_state, robot_action, update_flag)
+                self.robot_history.append(robot_action)
+
+            else:
+                robot_action = None
+
+        return self.state, rew, rew_pair, self.is_done(), robot_action, human_action
+
     def run_full_game(self, round, no_update=False):
         self.reset()
         iteration_count = 0
@@ -172,13 +263,14 @@ class RingOfFire():
 
 
 def compute_optimal_rew(first_player, start_state, all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho):
-    himdp = OptimalMDP(first_player, start_state, all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho)
+    himdp = OptimalMDP(first_player, copy.deepcopy(start_state), all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho)
     himdp.enumerate_states()
     himdp.value_iteration()
     rew = himdp.rollout_full_game_vi_policy()
-    human_rew = himdp.compute_max_human_reward()
-    robot_rew = himdp.compute_max_robot_reward()
-    return rew, human_rew, robot_rew
+    human_best_rew = himdp.compute_max_human_reward()
+    robot_best_rew = himdp.compute_max_robot_reward()
+    altruism_case = himdp.compare_opt_to_greedy()
+    return rew, human_best_rew, robot_best_rew, altruism_case
 
 def run_exp_config_old(start_state, all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho, vi_type):
     himdp = HiMDP(start_state, all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho, vi_type)
@@ -232,13 +324,13 @@ def run_exp_config_old(start_state, all_colors_list, task_reward, human_rew, h_r
     return total_rew
 
 
-def run_exp_config(start_state, all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho, vi_type):
+def run_exp_config(first_player, start_state, all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho, vi_type):
     robot_agent = Robot_Model(robot_rew, all_colors_list, task_reward, [1], vi_type)
 
-    true_human_agent = Human_Hypothesis(human_rew, all_colors_list, task_reward, h_rho)
+    true_human_agent = Human_Hypothesis(human_rew, robot_rew, all_colors_list, task_reward, h_rho)
     # true_human_agent = True_Human_Model(human_rewards, true_human_order, num_particles=num_particles)
 
-    rof_game = RingOfFire(robot_agent, true_human_agent, start_state)
+    rof_game = RingOfFire(first_player, robot_agent, true_human_agent, start_state)
     # rof_game.run_full_game()
 
     num_rounds = 10
@@ -321,13 +413,13 @@ def run_k_rounds(exp, task_reward, r_rho, h_rho_of_interest):
     robot_rew = list(permutes[np.random.choice(np.arange(len(permutes)))])
 
     for h_rho in [h_rho_of_interest]:
-        optimal_rew, best_human_rew, best_robot_rew = compute_optimal_rew(first_player, start_state, all_colors_list,
+        optimal_rew, best_human_rew, best_robot_rew, altruism_case = compute_optimal_rew(first_player, start_state, all_colors_list,
                                                                           task_reward,
                                                                           human_rew, h_rho, robot_rew, r_rho)
-        cvi_rew, cvi_human_rew, cvi_robot_rew = run_exp_config(start_state, all_colors_list, task_reward, human_rew,
+        cvi_rew, cvi_human_rew, cvi_robot_rew = run_exp_config(first_player, start_state, all_colors_list, task_reward, human_rew,
                                                                h_rho,
                                                                robot_rew, r_rho, 'cvi')
-        stdvi_rew, stdvi_human_rew, stdvi_robot_rew = run_exp_config(start_state, all_colors_list, task_reward,
+        stdvi_rew, stdvi_human_rew, stdvi_robot_rew = run_exp_config(first_player, start_state, all_colors_list, task_reward,
                                                                      human_rew, h_rho,
                                                                      robot_rew, r_rho, 'stdvi')
 
@@ -347,8 +439,23 @@ def run_k_rounds(exp, task_reward, r_rho, h_rho_of_interest):
         stdvi_percent_of_opt_robot = stdvi_robot_rew / best_robot_rew
 
     print("done w exp = ", exp)
+    print("done with exp = ", exp)
+    diff = cvi_percent_of_opt_team - stdvi_percent_of_opt_team
+    diff = np.round(diff, 2)
+
+    if diff < 0:
+        print()
+        print("CVI less than StdVI")
+        print("first_player = ", first_player)
+        print("start_state = ", start_state)
+        print("human_rew = ", human_rew)
+        print("robot_rew = ", robot_rew)
+        print("cvi_rew = ", cvi_rew)
+        print("stdvi_rew = ", stdvi_rew)
+        print()
+
     return cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
-           cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot
+           cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case
 
 
 if __name__ == "__main__":
@@ -373,12 +480,28 @@ if __name__ == "__main__":
 
     num_exps = 100
 
+    n_altruism = 0
+    n_total = 0
+    n_greedy = 0
+    percent_change = {}
+    for percent in np.arange(-1.0, 1.01, step=0.01):
+        percent_change[np.round(percent, 2)] = 0
+
     h_rho_of_interest = 1
     with Pool(processes=100) as pool:
         k_round_results = pool.starmap(run_k_rounds, [(exp_num, task_reward, r_rho, h_rho_of_interest) for exp_num in range(num_exps)])
         for result in k_round_results:
             cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
-            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot = result
+            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case = result
+
+            if altruism_case == 'opt':
+                n_greedy += 1
+            if altruism_case == 'subopt':
+                n_altruism += 1
+            n_total += 1
+
+            if altruism_case == 'opt':
+                continue
 
             cvi_percents[h_rho_of_interest].append(cvi_percent_of_opt_team)
             stdvi_percents[h_rho_of_interest].append(stdvi_percent_of_opt_team)
@@ -388,6 +511,11 @@ if __name__ == "__main__":
 
             cvi_robotrew_percents[h_rho_of_interest].append(cvi_percent_of_opt_robot)
             stdvi_robotrew_percents[h_rho_of_interest].append(stdvi_percent_of_opt_robot)
+
+            diff = cvi_percent_of_opt_team - stdvi_percent_of_opt_team
+            diff = np.round(diff, 2)
+            print("percent_change = ", percent_change)
+            percent_change[diff] += 1
 
     teamrew_means = [np.round(np.mean(cvi_percents[h_rho_of_interest]), 2),
                      np.round(np.mean(stdvi_percents[h_rho_of_interest]), 2)]
@@ -418,7 +546,26 @@ if __name__ == "__main__":
           stats.ttest_ind([elem * 100 for elem in cvi_robotrew_percents[h_rho_of_interest]],
                           [elem * 100 for elem in stdvi_robotrew_percents[h_rho_of_interest]]))
 
+    print("n_altruism = ", n_altruism)
+    print("n_greedy = ", n_greedy)
+    print("n_total = ", n_total)
 
+    X = [d for d in percent_change]
+    sum_Y = sum([percent_change[d] for d in percent_change])
+    Y = [percent_change[d] / sum_Y for d in percent_change]
+
+    # Compute the CDF
+    CY = np.cumsum(Y)
+
+    # Plot both
+    # fig, ax = plt.subplots(figsize=(5, 5))
+    plt.plot(X, Y, label='Diff PDF')
+    plt.plot(X, CY, 'r--', label='Diff CDF')
+    plt.xlabel("% of Opt CVI - % of Opt StdVI")
+
+    plt.legend()
+    plt.savefig("collab_private_iterative_100_multiprocess_cdf.png")
+    plt.show()
     # collab_means = [np.round(np.mean(cvi_percents[1]), 2), np.round(np.mean(stdvi_percents[1]), 2)]
     # collab_stds = [np.round(np.std(cvi_percents[1]), 2), np.round(np.std(stdvi_percents[1]), 2)]
 

@@ -10,7 +10,6 @@ import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
 
-
 BLUE = 0
 GREEN = 1
 RED = 2
@@ -38,6 +37,9 @@ class Robot:
 
         self.starting_objects = starting_state
         self.reset()
+        self.possible_joint_actions = self.get_all_possible_joint_actions()
+
+
 
         # set value iteration components
         self.transitions, self.rewards, self.state_to_idx, self.idx_to_action, \
@@ -48,16 +50,13 @@ class Robot:
         self.epsilson = 0.0001
         self.gamma = 1.0
         self.maxiter = 100
-        self.beta = 0.9
-
         self.vi_type = vi_type
 
+        self.beta = 0.9
         if self.true_human_rew is not None:
             self.set_beliefs_with_true_reward()
         else:
             self.set_beliefs_without_true_reward()
-
-            print("Done setting up beliefs without true reward")
 
     def reset(self):
         self.state_remaining_objects = {}
@@ -68,6 +67,14 @@ class Robot:
                 self.possible_actions.append(obj_tuple)
             else:
                 self.state_remaining_objects[obj_tuple] += 1
+
+    def get_all_possible_joint_actions(self):
+        possible_joint_actions = []
+        for r_act in self.possible_actions:
+            for h_act in self.possible_actions:
+                joint_action = {'robot': r_act, 'human': h_act}
+                possible_joint_actions.append(joint_action)
+        return possible_joint_actions
 
     def set_beliefs_with_true_reward(self):
         # self.human_rew = copy.deepcopy(self.true_human_rew)
@@ -93,6 +100,7 @@ class Robot:
 
         # print("sum([self.beliefs[idx]['prob'] for idx in self.beliefs.keys()]) = ", sum([self.beliefs[idx]['prob'] for idx in self.beliefs.keys()]))
         assert sum([self.beliefs[idx]['prob'] for idx in self.beliefs.keys()]) == 1
+        return
 
     def set_beliefs_without_true_reward(self):
         # self.human_rew = copy.deepcopy(self.true_human_rew)
@@ -101,27 +109,190 @@ class Robot:
         self.beliefs = {}
         permutes = list(itertools.permutations(self.ind_rew.values()))
         permutes = list(set(permutes))
+        print("number of permutations = ", len(permutes))
         object_keys = list(self.ind_rew.keys())
         self.belief_idx_to_q_values = {}
         for idx in range(len(permutes)):
-            print("starting idx = ", idx)
+            # print("starting idx = ", idx)
             human_rew_values = permutes[idx]
             human_rew_dict = {object_keys[i]: list(human_rew_values)[i] for i in range(len(object_keys))}
-            q_values_table = self.human_candidate_value_iteration(human_rew_dict)
-            self.belief_idx_to_q_values[idx] = {}
-            # self.belief_idx_to_q_values[idx]['reward_dict'] = human_rew_dict
-            self.belief_idx_to_q_values[idx] = q_values_table
-
+            # q_values_table = self.human_candidate_value_iteration(human_rew_dict)
+            # self.belief_idx_to_q_values[idx] = {}
+            # # self.belief_idx_to_q_values[idx]['reward_dict'] = human_rew_dict
+            # self.belief_idx_to_q_values[idx] = q_values_table
 
             self.beliefs[idx] = {}
             self.beliefs[idx]['reward_dict'] = human_rew_dict
-            self.beliefs[idx]['prob'] = 1/len(permutes)
-            print("done with idx = ", idx)
+            self.beliefs[idx]['prob'] = 1 / len(permutes)
+            # print("done with idx = ", idx)
 
         # assert sum([self.beliefs[idx]['prob'] for idx in self.beliefs.keys()]) == 1
 
-        with open('data/q_values.pkl', 'wb') as file:
-            pickle.dump(self.belief_idx_to_q_values, file)
+        # with open('data/q_values.pkl', 'wb') as file:
+        #     pickle.dump(self.belief_idx_to_q_values, file)
+        with open('data/q_values.pkl', 'rb') as file:
+            self.belief_idx_to_q_values = pickle.load(file)
+
+    def is_done(self):
+        if sum(self.state_remaining_objects.values()) == 0:
+            return True
+        return False
+
+    def human_candidate_value_iteration(self, human_rew_dict):
+        """
+        Parameters
+        ----------
+            transitions : array_like
+                Transition probability matrix. Of size (# states, # states, # actions).
+            rewards : array_like
+                Reward matrix. Of size (# states, # actions).
+            epsilson : float, optional
+                The convergence threshold. The default is 0.0001.
+            gamma : float, optional
+                The discount factor. The default is 0.99.
+            maxiter : int, optional
+                The maximum number of iterations. The default is 10000.
+        Returns
+        -------
+            value_function : array_like
+                The value function. Of size (# states, 1).
+            pi : array_like
+                The optimal policy. Of size (# states, 1).
+        """
+        n_states = self.transitions.shape[0]
+        n_actions = self.transitions.shape[2]
+
+        # initialize value function
+        pi = np.zeros((n_states, 1))
+        vf = np.zeros((n_states, 1))
+        Q = np.zeros((n_states, n_actions))
+
+        for i in range(self.maxiter):
+            # print("i=", i)
+            # initalize delta
+            delta = 0
+            # perform Bellman update
+            for s in range(n_states):
+                # store old value function
+                old_v = vf[s].copy()
+
+                current_state = copy.deepcopy(list(self.idx_to_state[s]))
+
+                current_state_remaining_objects = {}
+                for obj_tuple in current_state:
+                    if obj_tuple not in current_state_remaining_objects:
+                        current_state_remaining_objects[obj_tuple] = 1
+                    else:
+                        current_state_remaining_objects[obj_tuple] += 1
+                for obj_tuple in self.possible_actions:
+                    if obj_tuple is not None and obj_tuple not in current_state_remaining_objects:
+                        current_state_remaining_objects[obj_tuple] = 0
+
+                if len(current_state_remaining_objects) == 0 or sum(current_state_remaining_objects.values()) == 0:
+                    for action_idx in range(n_actions):
+                    # action_idx = self.action_to_idx[(None, None)]
+                        Q[s, action_idx] = vf[s]
+
+                else:
+                    # compute new Q values
+                    #
+                    for action_idx in self.idx_to_action:
+                        # pdb.set_trace()
+                        # check joint action
+                        joint_action = self.idx_to_action[action_idx]
+                        r_act = joint_action[0]
+                        h_act = joint_action[1]
+                        joint_action = {'robot': r_act, 'human': h_act}
+
+
+                        # print("current_state_remaining_objects = ", current_state_remaining_objects)
+                        # print("joint_action = ", joint_action)
+                        next_state, (team_rew, robot_rew, human_rew), done = self.step_given_state(
+                            current_state_remaining_objects, joint_action, human_rew_dict)
+                        # print(f"current_state = ", current_state_remaining_objects)
+                        # print("action=  ", joint_action)
+                        # print("r_sa = ", r_sa)
+                        # print("next_state = ", next_state)
+                        # print("done = ", done)
+
+
+
+                        # if joint_action['human'] == h_action:
+                        #     print(f"h_action,joint_action['human'] = {(h_action, joint_action['human'])}")
+                        #     r_sa = team_rew
+                        # else:
+                        #     r_sa = -1
+
+                        r_sa = team_rew
+                        s11 = self.state_to_idx[self.state_to_tuple(next_state)]
+                        # action_idx = self.action_to_idx[(r_act, h_action)]
+                        Q[s, action_idx] = r_sa + (self.gamma * vf[s11])
+
+                vf[s] = np.max(Q[s, :], 0)
+
+                # compute delta
+                delta = np.max((delta, np.abs(old_v - vf[s])[0]))
+
+            # check for convergence
+            if delta < self.epsilson:
+                print("Human candidate VI DONE at iteration ", i)
+                break
+
+        # compute optimal policy
+        policy = {}
+        for s in range(n_states):
+            # store old value function
+            old_v = vf[s].copy()
+
+            current_state = copy.deepcopy(list(self.idx_to_state[s]))
+
+            current_state_remaining_objects = {}
+            for obj_tuple in current_state:
+                if obj_tuple not in current_state_remaining_objects:
+                    current_state_remaining_objects[obj_tuple] = 1
+                else:
+                    current_state_remaining_objects[obj_tuple] += 1
+            for obj_tuple in self.possible_actions:
+                if obj_tuple is not None and obj_tuple not in current_state_remaining_objects:
+                    current_state_remaining_objects[obj_tuple] = 0
+
+            if len(current_state_remaining_objects) == 0 or sum(current_state_remaining_objects.values()) == 0:
+                for action_idx in range(n_actions):
+                    # action_idx = self.action_to_idx[(None, None)]
+                    Q[s, action_idx] = vf[s]
+
+            else:
+
+                # compute new Q values
+                for action_idx in self.idx_to_action:
+                    # check joint action
+                    # joint_action = self.idx_to_action[action_idx]
+                    # joint_action = {'robot': r_act, 'human': h_action}
+                    joint_action = self.idx_to_action[action_idx]
+                    r_act = joint_action[0]
+                    h_act = joint_action[1]
+                    joint_action = {'robot': r_act, 'human': h_act}
+
+                    next_state, (team_rew, robot_rew, human_rew), done = self.step_given_state(current_state_remaining_objects,
+                                                                                           joint_action, human_rew_dict)
+
+                    r_sa = team_rew
+                    s11 = self.state_to_idx[self.state_to_tuple(next_state)]
+                    # action_idx = self.action_to_idx[(r_act, h_action)]
+                    Q[s, action_idx] = r_sa + (self.gamma * vf[s11])
+
+            pi[s] = np.argmax(Q[s, :], 0)
+            policy[s] = Q[s, :]
+
+        return Q
+
+    def get_all_possible_joint_actions(self):
+        possible_joint_actions = []
+        for r_act in self.possible_actions:
+            for h_act in self.possible_actions:
+                joint_action = {'robot': r_act, 'human': h_act}
+                possible_joint_actions.append(joint_action)
+        return possible_joint_actions
 
     def update_based_on_h_action(self, current_state, robot_action, human_action):
         if self.true_human_rew is not None:
@@ -163,24 +334,6 @@ class Robot:
 
         for idx in self.beliefs:
             self.beliefs[idx]['prob'] = self.beliefs[idx]['prob']/normalization_denominator
-
-        return
-
-
-    def is_done(self):
-        if sum(self.state_remaining_objects.values()) == 0:
-            return True
-        return False
-
-    def get_all_possible_joint_actions(self):
-        possible_joint_actions = []
-        for r_act in self.possible_actions:
-            for h_act in self.possible_actions:
-                joint_action = {'robot': r_act, 'human': h_act}
-                possible_joint_actions.append(joint_action)
-        return possible_joint_actions
-
-
 
     def step_given_state(self, input_state, joint_action, human_reward):
         state_remaining_objects = copy.deepcopy(input_state)
@@ -319,20 +472,28 @@ class Robot:
                                                                     idx_to_action, idx_to_state, action_to_idx
         return transition_mat, reward_mat, state_to_idx, idx_to_action, idx_to_state, action_to_idx
 
+
+
     def get_human_action_under_hypothesis(self, current_state_remaining_objects, human_reward):
         best_human_act = []
         max_reward = -100
-        for candidate_h_act in self.possible_actions:
+        # print("self.possible_joint_actions", self.possible_joint_actions)
+        for joint_act in self.possible_joint_actions:
+            candidate_r_act = joint_act['robot']
+            candidate_h_act = joint_act['human']
+            # joint_act = {'robot': candidate_r_act, 'human': candidate_h_act}
+            # print("joint_act", joint_act)
+            # print("candidate_h_act", candidate_h_act)
+            _, (candidate_rew, _, _), _ = self.step_given_state(current_state_remaining_objects, joint_act, human_reward)
+            # print("candidate_rew", candidate_rew)
             if candidate_h_act is not None:
-                if current_state_remaining_objects[candidate_h_act] > 0:
-                    candidate_rew = human_reward[candidate_h_act]
-                    if candidate_rew == max_reward:
-                        if candidate_h_act not in best_human_act:
-                            best_human_act.append(candidate_h_act)
+                if candidate_rew == max_reward:
+                    if candidate_h_act not in best_human_act:
+                        best_human_act.append(candidate_h_act)
 
-                    elif candidate_rew > max_reward:
-                        max_reward = candidate_rew
-                        best_human_act = [candidate_h_act]
+                elif candidate_rew > max_reward:
+                    max_reward = candidate_rew
+                    best_human_act = [candidate_h_act]
 
         if len(best_human_act) == 0:
             h_action = None
@@ -372,6 +533,7 @@ class Robot:
             pi : array_like
                 The optimal policy. Of size (# states, 1).
         """
+        print("running CVI")
         n_states = self.transitions.shape[0]
         n_actions = self.transitions.shape[2]
 
@@ -449,7 +611,7 @@ class Robot:
                 delta = np.max((delta, np.abs(old_v - vf[s])[0]))
 
             # check for convergence
-            # print("i = ", i)
+            print(f"CVI i = {i}, delta = {delta}")
             if delta < self.epsilson:
                 print("CVI DONE at iteration ", i)
                 break
@@ -678,154 +840,6 @@ class Robot:
         self.policy = policy
         # print("self.pi", self.pi)
         return vf, pi
-
-    def human_candidate_value_iteration(self, human_rew_dict):
-        """
-        Parameters
-        ----------
-            transitions : array_like
-                Transition probability matrix. Of size (# states, # states, # actions).
-            rewards : array_like
-                Reward matrix. Of size (# states, # actions).
-            epsilson : float, optional
-                The convergence threshold. The default is 0.0001.
-            gamma : float, optional
-                The discount factor. The default is 0.99.
-            maxiter : int, optional
-                The maximum number of iterations. The default is 10000.
-        Returns
-        -------
-            value_function : array_like
-                The value function. Of size (# states, 1).
-            pi : array_like
-                The optimal policy. Of size (# states, 1).
-        """
-        n_states = self.transitions.shape[0]
-        n_actions = self.transitions.shape[2]
-
-        # initialize value function
-        pi = np.zeros((n_states, 1))
-        vf = np.zeros((n_states, 1))
-        Q = np.zeros((n_states, n_actions))
-
-        for i in range(self.maxiter):
-            # print("i=", i)
-            # initalize delta
-            delta = 0
-            # perform Bellman update
-            for s in range(n_states):
-                # store old value function
-                old_v = vf[s].copy()
-
-                current_state = copy.deepcopy(list(self.idx_to_state[s]))
-
-                current_state_remaining_objects = {}
-                for obj_tuple in current_state:
-                    if obj_tuple not in current_state_remaining_objects:
-                        current_state_remaining_objects[obj_tuple] = 1
-                    else:
-                        current_state_remaining_objects[obj_tuple] += 1
-                for obj_tuple in self.possible_actions:
-                    if obj_tuple is not None and obj_tuple not in current_state_remaining_objects:
-                        current_state_remaining_objects[obj_tuple] = 0
-
-                if len(current_state_remaining_objects) == 0 or sum(current_state_remaining_objects.values()) == 0:
-                    for action_idx in range(n_actions):
-                    # action_idx = self.action_to_idx[(None, None)]
-                        Q[s, action_idx] = vf[s]
-
-                else:
-                    # compute new Q values
-                    #
-                    for action_idx in self.idx_to_action:
-                        # pdb.set_trace()
-                        # check joint action
-                        joint_action = self.idx_to_action[action_idx]
-                        r_act = joint_action[0]
-                        h_act = joint_action[1]
-                        joint_action = {'robot': r_act, 'human': h_act}
-
-
-                        # print("current_state_remaining_objects = ", current_state_remaining_objects)
-                        # print("joint_action = ", joint_action)
-                        next_state, (team_rew, robot_rew, human_rew), done = self.step_given_state(
-                            current_state_remaining_objects, joint_action, human_rew_dict)
-                        # print(f"current_state = ", current_state_remaining_objects)
-                        # print("action=  ", joint_action)
-                        # print("r_sa = ", r_sa)
-                        # print("next_state = ", next_state)
-                        # print("done = ", done)
-
-
-
-                        # if joint_action['human'] == h_action:
-                        #     print(f"h_action,joint_action['human'] = {(h_action, joint_action['human'])}")
-                        #     r_sa = team_rew
-                        # else:
-                        #     r_sa = -1
-
-                        r_sa = team_rew
-                        s11 = self.state_to_idx[self.state_to_tuple(next_state)]
-                        # action_idx = self.action_to_idx[(r_act, h_action)]
-                        Q[s, action_idx] = r_sa + (self.gamma * vf[s11])
-
-                vf[s] = np.max(Q[s, :], 0)
-
-                # compute delta
-                delta = np.max((delta, np.abs(old_v - vf[s])[0]))
-
-            # check for convergence
-            if delta < self.epsilson:
-                print("Std VI DONE at iteration ", i)
-                break
-
-        # compute optimal policy
-        policy = {}
-        for s in range(n_states):
-            # store old value function
-            old_v = vf[s].copy()
-
-            current_state = copy.deepcopy(list(self.idx_to_state[s]))
-
-            current_state_remaining_objects = {}
-            for obj_tuple in current_state:
-                if obj_tuple not in current_state_remaining_objects:
-                    current_state_remaining_objects[obj_tuple] = 1
-                else:
-                    current_state_remaining_objects[obj_tuple] += 1
-            for obj_tuple in self.possible_actions:
-                if obj_tuple is not None and obj_tuple not in current_state_remaining_objects:
-                    current_state_remaining_objects[obj_tuple] = 0
-
-            if len(current_state_remaining_objects) == 0 or sum(current_state_remaining_objects.values()) == 0:
-                for action_idx in range(n_actions):
-                    # action_idx = self.action_to_idx[(None, None)]
-                    Q[s, action_idx] = vf[s]
-
-            else:
-
-                # compute new Q values
-                for action_idx in self.idx_to_action:
-                    # check joint action
-                    # joint_action = self.idx_to_action[action_idx]
-                    # joint_action = {'robot': r_act, 'human': h_action}
-                    joint_action = self.idx_to_action[action_idx]
-                    r_act = joint_action[0]
-                    h_act = joint_action[1]
-                    joint_action = {'robot': r_act, 'human': h_act}
-
-                    next_state, (team_rew, robot_rew, human_rew), done = self.step_given_state(current_state_remaining_objects,
-                                                                                           joint_action, human_rew_dict)
-
-                    r_sa = team_rew
-                    s11 = self.state_to_idx[self.state_to_tuple(next_state)]
-                    # action_idx = self.action_to_idx[(r_act, h_action)]
-                    Q[s, action_idx] = r_sa + (self.gamma * vf[s11])
-
-            pi[s] = np.argmax(Q[s, :], 0)
-            policy[s] = Q[s, :]
-
-        return Q
 
     def setup_value_iteration(self):
         self.enumerate_states()

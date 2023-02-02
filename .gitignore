@@ -7,6 +7,10 @@ src/hi_mdp/randomized_aggregate/
 src/hi_mdp/results/
 src/hi_mdp/weights_imgs/
 src/julia_mirl/
+src/simultaneous_exp/data/
+src/simultaneous_exp/images/
+
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

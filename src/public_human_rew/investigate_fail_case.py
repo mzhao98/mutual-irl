@@ -20,7 +20,6 @@ from hip_mdp_1player import HiMDP
 from human_agent import Human_Hypothesis
 
 from human_agent import Human_Hypothesis
-# from robot_tom_agent_full_beliefs import Robot_Model
 from robot_tom_agent import Robot_Model
 from multiprocessing import Pool, freeze_support
 import pickle
@@ -33,6 +32,9 @@ COLOR_TO_TEXT = {BLUE: 'blue', GREEN:'green', RED:'red', YELLOW:'yellow', None:'
 # Disable
 def blockPrint():
     sys.stdout = open(os.devnull, 'w')
+
+def get_key_with_max_value_from_dict(dictionary):
+    return max(dictionary.items(), key=operator.itemgetter(1))[0]
 
 # Restore
 def enablePrint():
@@ -92,6 +94,54 @@ class RingOfFire():
         if sum(self.state) == 0:
             return True
         return False
+
+    def step_old(self, iteration, no_update=False):
+        # have the robot act
+        # pdb.set_trace()
+        # with open(self.log_filename, 'a') as f:
+        #     f.write(f"\n\nCurrent state = {self.state}")
+
+        robot_action = self.robot.act(self.state, iteration)
+
+        # update state and human's model of robot
+        robot_state = copy.deepcopy(self.state)
+        rew = 0
+        rew_pair = [0, 0]
+        if self.state[robot_action] > 0:
+            self.state[robot_action] -= 1
+            rew += self.robot.ind_rew[robot_action]
+            rew_pair[0] = self.robot.ind_rew[robot_action]
+
+        # if no_update is False:
+        # self.human.update_with_partner_action(robot_state, robot_action)
+        # self.robot.update_human_models_with_robot_action(robot_state, robot_action)
+        # self.robot_history.append(robot_action)
+
+        if self.is_done() is False:
+            # have the human act
+            human_action = self.human.act(self.state)
+
+            # update state and human's model of robot
+            human_state = copy.deepcopy(self.state)
+            if self.state[human_action] > 0:
+                self.state[human_action] -= 1
+                rew += self.human.ind_rew[human_action]
+                rew_pair[1] = self.robot.ind_rew[robot_action]
+
+            # if no_update is False:
+            # update_flag = self.is_done()
+            update_flag = False
+            self.human.update_beliefs_of_robot_with_robot_action(robot_state, robot_action, update_flag)
+            self.robot.update_human_beliefs_of_robot_with_robot_action(robot_state, robot_action, update_flag)
+            self.robot_history.append(robot_action)
+
+            self.robot.update_robots_human_models_with_human_action(human_state, human_action, update_flag)
+            self.human_history.append(human_action)
+
+        else:
+            human_action = None
+
+        return self.state, rew, rew_pair, self.is_done(), robot_action, human_action
 
     def step(self, iteration, no_update=False):
         # have the robot act
@@ -192,13 +242,25 @@ class RingOfFire():
         human_only_reward = 0
         robot_only_reward = 0
         while self.is_done() is False:
+            initial_state = copy.deepcopy(self.state)
             _, rew, rew_pair, _, r_action, h_action = self.step(iteration=iteration_count, no_update=no_update)
-            # print(f"\nTimestep: {iteration_count}")
-            # print(f"Current state: {self.state}")
-            # print(f"Robot took action: {COLOR_TO_TEXT[r_action]}")
-            # print(f"Robot took action: {COLOR_TO_TEXT[h_action]}")
-            # print(f"Achieved reward: {rew_pair}")
-            # print(f"Total reward: {self.total_reward}")
+            print(f"\nTimestep: {iteration_count}")
+            print(f"Initial state: {initial_state}")
+            # print(f"Robot believes human reward is: {get_key_with_max_value_from_dict(self.robot.beliefs_over_human_models)}")
+            # print(f"Human believes robot reward is: {get_key_with_max_value_from_dict(self.robot.beliefs_over_human_models)}")
+            # print(f"Robot believes human reward is: {get_key_with_max_value_from_dict(self.robot.beliefs_over_human_models)}")
+
+            if self.first_player == 'r':
+                print(f"Robot took action: {COLOR_TO_TEXT[r_action]}")
+                print(f"Human took action: {COLOR_TO_TEXT[h_action]}")
+            else:
+                print(f"Human took action: {COLOR_TO_TEXT[h_action]}")
+                print(f"Robot took action: {COLOR_TO_TEXT[r_action]}")
+
+
+            print(f"Current state: {self.state}")
+            print(f"Achieved reward: {rew_pair}")
+            print(f"Total reward: {self.total_reward}")
 
             self.rew_history.append(rew_pair)
             self.total_reward += rew
@@ -216,7 +278,7 @@ class RingOfFire():
 
 
 def compute_optimal_rew(first_player, start_state, all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho):
-    himdp = OptimalMDP(first_player, start_state, all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho)
+    himdp = OptimalMDP(first_player, copy.deepcopy(start_state), all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho)
     himdp.enumerate_states()
     himdp.value_iteration()
     rew = himdp.rollout_full_game_vi_policy()
@@ -225,9 +287,57 @@ def compute_optimal_rew(first_player, start_state, all_colors_list, task_reward,
     altruism_case = himdp.compare_opt_to_greedy()
     return rew, human_best_rew, robot_best_rew, altruism_case
 
+def run_exp_config_old(start_state, all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho, vi_type):
+    himdp = HiMDP(start_state, all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho, vi_type)
+    himdp.enumerate_states()
+    himdp.value_iteration()
 
-def get_key_with_max_value_from_dict(dictionary):
-    return max(dictionary.items(), key=operator.itemgetter(1))[0]
+    # s = himdp.state_to_idx[(2,2,2)]
+    # action = himdp.policy[s]
+    # print("action", action)
+
+    current_state = copy.deepcopy(start_state)
+    total_rew = 0
+    while sum(current_state) > 0:
+        s = himdp.state_to_idx[tuple(current_state)]
+        action = himdp.policy[s]
+        # print(f"Robot action distribution: {action}")
+        # r_action = np.argmax(action)
+        indices = [idx for idx, val in enumerate(action) if val == max(action)]
+        r_action = np.random.choice(indices)
+        total_rew += robot_rew[r_action]
+        # print(f"Robot action: {r_action} in state {current_state}")
+        # print(f"rew = {total_rew}")
+
+
+
+        current_state[r_action] -= 1
+        if sum(current_state) == 0:
+            break
+
+        best_acts = []
+        best_rew = -100
+        for i in range(len(current_state)):
+            if current_state[i] > 0:
+                h_rew = human_rew[i]
+                if h_rew == best_rew:
+                    best_rew = h_rew
+                    best_acts.append(i)
+                elif h_rew > best_rew:
+                    best_rew = h_rew
+                    best_acts = [i]
+        h_action = np.random.choice(best_acts)
+        # h_action = best_acts[0]
+        total_rew += human_rew[h_action]
+        # print(f"Human action: {h_action} in state {current_state}")
+        # print(f"rew = {total_rew}")
+        # print()
+
+        current_state[h_action] -= 1
+
+    # print(f"FINAL = {total_rew}")
+    return total_rew
+
 
 def run_exp_config(first_player, start_state, all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho, vi_type):
     robot_agent = Robot_Model(robot_rew, all_colors_list, task_reward, [0], vi_type)
@@ -259,28 +369,9 @@ def run_exp_config(first_player, start_state, all_colors_list, task_reward, huma
         final_robot_rew = robot_only_reward
 
     # print("collective_scores", collective_scores)
-    (final_belief_human_rew, h_rho) = get_key_with_max_value_from_dict(robot_agent.beliefs_over_human_models)
-    return final_rew, final_human_rew, final_robot_rew, final_belief_human_rew
+    return final_rew, final_human_rew, final_robot_rew
 
 
-# def autolabel(ax, rects, xpos='center'):
-#     """
-#     Attach a text label above each bar in *rects*, displaying its height.
-#
-#     *xpos* indicates which side to place the text w.r.t. the center of
-#     the bar. It can be one of the following {'center', 'right', 'left'}.
-#     """
-#
-#     ha = {'center': 'center', 'right': 'left', 'left': 'right'}
-#     offset = {'center': 0, 'right': 1, 'left': -1}
-#
-#     for rect in rects:
-#         height = rect.get_height()
-#         ax.annotate('{}'.format(height),
-#                     xy=(rect.get_x() + rect.get_width() / 2, height),
-#                     xytext=(offset[xpos] * 3, 3),  # use 3 points offset
-#                     textcoords="offset points",  # in both directions
-#                     ha=ha[xpos], va='bottom')
 def autolabel(ax, rects, xpos='center'):
     """
     Attach a text label above each bar in *rects*, displaying its height.
@@ -302,6 +393,7 @@ def autolabel(ax, rects, xpos='center'):
                     textcoords="offset points",  # in both directions
                     ha=ha[xpos], va='bottom', fontsize=14)
 
+
 def run_one():
     first_player = 'r'
     start_state = [2, 2, 2]
@@ -321,42 +413,73 @@ def run_one():
 
 
     # stdvi_rew = run_exp_config(start_state, all_colors_list, task_reward, human_rew, h_rho, robot_rew, r_rho, 'stdvi')
+
 def run_k_rounds(exp, task_reward, r_rho, h_rho_of_interest):
     print("exp = ", exp)
-    first_player = np.random.choice(['r', 'h'])
-    start_state = [np.random.randint(1, 10), np.random.randint(1, 10), np.random.randint(1, 10),
-                   np.random.randint(1, 10)]
-    if sum(start_state) % 2 == 1:
-        start_state[-1] -= 1
+    # first_player = np.random.choice(['r', 'h'])
+    # start_state = [np.random.randint(1, 10), np.random.randint(1, 10), np.random.randint(1, 10),
+    #                np.random.randint(2, 10)]
+    #
+    # # print("INIT 0 start_state", start_state)
+    #
+    # if sum(start_state) % 2 == 1:
+    #     start_state[-1] -= 1
+    #     # print("modified start_state", start_state)
+    #
     all_colors_list = [BLUE, GREEN, RED, YELLOW]
-    human_rew = [np.random.uniform(0.1, 20.0), np.random.uniform(0.1, 20.0), np.random.uniform(0.1, 20.0),
-                 np.random.uniform(0.1, 20.0)]
-    permutes = list(itertools.permutations(human_rew))
-    # print("permutes",permutes)
-    robot_rew = list(permutes[np.random.choice(np.arange(len(permutes)))])
+    # human_rew = [np.random.uniform(0.1, 20.0), np.random.uniform(0.1, 20.0), np.random.uniform(0.1, 20.0),
+    #              np.random.uniform(0.1, 20.0)]
+    # permutes = list(itertools.permutations(human_rew))
+    # # print("permutes",permutes)
+    # robot_rew = list(permutes[np.random.choice(np.arange(len(permutes)))])
 
-    num_correct = 0
-    total_num = 0
+    # first_player = 'h'
+    # start_state = [1, 7, 3, 3]
+    # human_rew = [18.442569522398447, 5.618252097092413, 14.98638238509415, 7.043994487601266]
+    # robot_rew = [18.442569522398447, 5.618252097092413, 7.043994487601266, 14.98638238509415]
+    # first_player = h
+    # start_state = [1, 2, 3, 4]
+    # human_rew = [18.880725640504068, 1.0889546331857372, 7.738392167912838, 9.163180869741995]
+    # robot_rew = [7.738392167912838, 18.880725640504068, 1.0889546331857372, 9.163180869741995]
+    # cvi_rew = 103.21120183476448
+    # stdvi_rew = 109.86063936949158
+
+    # first_player = 'r'
+    # start_state = [1, 2, 4, 1]
+    # human_rew = [14.8784218843146, 2.0957043331261542, 4.858449515244072, 12.637042611056593]
+    # robot_rew = [4.858449515244072, 2.0957043331261542, 12.637042611056593, 14.8784218843146]
+    # cvi_rew = 48.89929194934178
+    # stdvi_rew = 76.71782978329536
+
+    # first_player = h
+    # start_state = [1, 3, 1, 7]
+    # human_rew = [1.8190279102007514, 8.664376291031758, 17.31175768183903, 13.980337676036529]
+    # robot_rew = [13.980337676036529, 1.8190279102007514, 17.31175768183903, 8.664376291031758]
+    # cvi_rew = 123.97962005072397
+    # stdvi_rew = 127.03839404237644
+
+    first_player = 'h'
+    start_state = [1, 1, 8, 2, 0]
+    human_rew = [10.224558031980374, 3.471842578951374, 18.131391292933106, 16.32593090132697]
+    robot_rew = [10.224558031980374, 16.32593090132697, 18.131391292933106, 3.471842578951374]
+    # cvi_rew = 191.39939275705052
+    # stdvi_rew = 204.25348107942614
 
     for h_rho in [h_rho_of_interest]:
-        optimal_rew, best_human_rew, best_robot_rew, altruism_case = compute_optimal_rew(first_player, copy.deepcopy(start_state), all_colors_list,
+        optimal_rew, best_human_rew, best_robot_rew, altruism_case = compute_optimal_rew(first_player, start_state, all_colors_list,
                                                                           task_reward,
                                                                           human_rew, h_rho, robot_rew, r_rho)
-        cvi_rew, cvi_human_rew, cvi_robot_rew, final_belief_human_rew = run_exp_config(first_player, start_state, all_colors_list, task_reward, human_rew,
+        # print("INIT 1 start_state", start_state)
+        print("RUNNING CVI")
+        cvi_rew, cvi_human_rew, cvi_robot_rew = run_exp_config(first_player, start_state, all_colors_list, task_reward, human_rew,
                                                                h_rho,
                                                                robot_rew, r_rho, 'cvi')
-        stdvi_rew, stdvi_human_rew, stdvi_robot_rew, _ = run_exp_config(first_player, start_state, all_colors_list, task_reward,
+        # print("INIT 2 start_state", start_state)
+        print("\n\nRUNNING StdVI")
+        stdvi_rew, stdvi_human_rew, stdvi_robot_rew = run_exp_config(first_player, start_state, all_colors_list, task_reward,
                                                                      human_rew, h_rho,
                                                                      robot_rew, r_rho, 'stdvi')
-
-        # print()
-        # print("h_rho = ", h_rho)
-        # print("optimal_rew", optimal_rew)
-        # print("cvi_rew", cvi_rew)
-        # print("stdvi_rew", stdvi_rew)
-        if tuple(final_belief_human_rew) == tuple(human_rew):
-            num_correct += 1
-        total_num += 1
+        print("altruism_case", altruism_case)
 
         cvi_percent_of_opt_team = cvi_rew / optimal_rew
         stdvi_percent_of_opt_team = stdvi_rew / optimal_rew
@@ -367,7 +490,6 @@ def run_k_rounds(exp, task_reward, r_rho, h_rho_of_interest):
         cvi_percent_of_opt_robot = cvi_robot_rew / best_robot_rew
         stdvi_percent_of_opt_robot = stdvi_robot_rew / best_robot_rew
 
-    print("done w exp = ", exp)
     print("done with exp = ", exp)
     diff = cvi_percent_of_opt_team - stdvi_percent_of_opt_team
     diff = np.round(diff, 2)
@@ -383,9 +505,8 @@ def run_k_rounds(exp, task_reward, r_rho, h_rho_of_interest):
         print("stdvi_rew = ", stdvi_rew)
         print()
 
-
     return cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
-           cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, (num_correct/total_num), altruism_case
+           cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case
 
 
 if __name__ == "__main__":
@@ -408,7 +529,7 @@ if __name__ == "__main__":
     cvi_robotrew_percents = {0: [], 1: []}
     stdvi_robotrew_percents = {0: [], 1: []}
 
-    num_exps = 100
+    num_exps = 1
 
     n_altruism = 0
     n_total = 0
@@ -417,13 +538,12 @@ if __name__ == "__main__":
     for percent in np.arange(-1.0, 1.01, step=0.01):
         percent_change[np.round(percent, 2)] = 0
 
-    all_percent_human_correct = []
     h_rho_of_interest = 0
     with Pool(processes=100) as pool:
         k_round_results = pool.starmap(run_k_rounds, [(exp_num, task_reward, r_rho, h_rho_of_interest) for exp_num in range(num_exps)])
         for result in k_round_results:
             cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
-            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, percent_correct_on_human, altruism_case = result
+            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case = result
 
             if altruism_case == 'opt':
                 n_greedy += 1
@@ -433,8 +553,6 @@ if __name__ == "__main__":
 
             if altruism_case == 'opt':
                 continue
-
-            all_percent_human_correct.append(percent_correct_on_human)
 
             cvi_percents[h_rho_of_interest].append(cvi_percent_of_opt_team)
             stdvi_percents[h_rho_of_interest].append(stdvi_percent_of_opt_team)
@@ -451,26 +569,36 @@ if __name__ == "__main__":
             percent_change[diff] += 1
 
 
-    teamrew_means = [np.round(np.mean(cvi_percents[0]), 2), np.round(np.mean(stdvi_percents[0]), 2)]
-    teamrew_stds = [np.round(np.std(cvi_percents[0]), 2), np.round(np.std(stdvi_percents[0]), 2)]
-
-    humanrew_means = [np.round(np.mean(cvi_humanrew_percents[0]), 2), np.round(np.mean(stdvi_humanrew_percents[0]), 2)]
-    humanrew_stds = [np.round(np.std(cvi_humanrew_percents[0]), 2), np.round(np.std(stdvi_humanrew_percents[0]), 2)]
-
-    robotrew_means = [np.round(np.mean(cvi_robotrew_percents[0]), 2), np.round(np.mean(stdvi_robotrew_percents[0]), 2)]
-    robotrew_stds = [np.round(np.std(cvi_robotrew_percents[0]), 2), np.round(np.std(stdvi_robotrew_percents[0]), 2)]
-
-    print("all_percent_human_correct mean = ", np.mean(all_percent_human_correct))
-    print("all_percent_human_correct std = ", np.std(all_percent_human_correct))
-    print()
 
 
-    print("team rew stat results: ", stats.ttest_ind([elem*100 for elem in cvi_percents[0]], [elem*100 for elem in stdvi_percents[0]]))
+    teamrew_means = [np.round(np.mean(cvi_percents[h_rho_of_interest]), 2),
+                     np.round(np.mean(stdvi_percents[h_rho_of_interest]), 2)]
+    teamrew_stds = [np.round(np.std(cvi_percents[h_rho_of_interest]), 2),
+                    np.round(np.std(stdvi_percents[h_rho_of_interest]), 2)]
+
+    humanrew_means = [np.round(np.mean(cvi_humanrew_percents[h_rho_of_interest]), 2),
+                      np.round(np.mean(stdvi_humanrew_percents[h_rho_of_interest]), 2)]
+    humanrew_stds = [np.round(np.std(cvi_humanrew_percents[h_rho_of_interest]), 2),
+                     np.round(np.std(stdvi_humanrew_percents[h_rho_of_interest]), 2)]
+
+    robotrew_means = [np.round(np.mean(cvi_robotrew_percents[h_rho_of_interest]), 2),
+                      np.round(np.mean(stdvi_robotrew_percents[h_rho_of_interest]), 2)]
+    robotrew_stds = [np.round(np.std(cvi_robotrew_percents[h_rho_of_interest]), 2),
+                     np.round(np.std(stdvi_robotrew_percents[h_rho_of_interest]), 2)]
+
+    # collab_means = [np.round(np.mean(cvi_percents[1]), 2), np.round(np.mean(stdvi_percents[1]), 2)]
+    # collab_stds = [np.round(np.std(cvi_percents[1]), 2), np.round(np.std(stdvi_percents[1]), 2)]
+
+    print("team rew stat results: ",
+          stats.ttest_ind([elem * 100 for elem in cvi_percents[h_rho_of_interest]],
+                          [elem * 100 for elem in stdvi_percents[h_rho_of_interest]]))
     print("human rew stat results: ",
-          stats.ttest_ind([elem * 100 for elem in cvi_humanrew_percents[0]], [elem * 100 for elem in stdvi_humanrew_percents[0]]))
+          stats.ttest_ind([elem * 100 for elem in cvi_humanrew_percents[h_rho_of_interest]],
+                          [elem * 100 for elem in stdvi_humanrew_percents[h_rho_of_interest]]))
+
     print("robot rew stat results: ",
-          stats.ttest_ind([elem * 100 for elem in cvi_robotrew_percents[0]],
-                          [elem * 100 for elem in cvi_robotrew_percents[0]]))
+          stats.ttest_ind([elem * 100 for elem in cvi_robotrew_percents[h_rho_of_interest]],
+                          [elem * 100 for elem in stdvi_robotrew_percents[h_rho_of_interest]]))
 
     print("n_altruism = ", n_altruism)
     print("n_greedy = ", n_greedy)
@@ -490,8 +618,9 @@ if __name__ == "__main__":
     plt.xlabel("% of Opt CVI - % of Opt StdVI")
 
     plt.legend()
-    plt.savefig("greedy_private_iterative_100_multiprocess_cdf.png")
+    # plt.savefig("collab_public_iterative_100_multiprocess_cdf.png")
     plt.show()
+
 
     # collab_means = [np.round(np.mean(cvi_percents[1]), 2), np.round(np.mean(stdvi_percents[1]), 2)]
     # collab_stds = [np.round(np.std(cvi_percents[1]), 2), np.round(np.std(stdvi_percents[1]), 2)]
@@ -503,133 +632,19 @@ if __name__ == "__main__":
     rects1 = ax.bar(ind - width, teamrew_means, width, yerr=teamrew_stds,
                     label='Team Reward', capsize=10)
     rects2 = ax.bar(ind, humanrew_means, width, yerr=humanrew_stds,
-                    label='Human Reward', capsize=10)
+                    label='Human-Only Reward', capsize=10)
     rects3 = ax.bar(ind + width, robotrew_means, width, yerr=robotrew_stds,
-                    label='Robot Reward', capsize=10)
+                    label='Robot-Only Reward', capsize=10)
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
     ax.set_xlabel('Robot Type', fontsize=14)
     ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
-    ax.set_ylim(-0.00, 1.5)
+    ax.set_ylim(-0.00, 1.8)
 
     plt.yticks([0.0,0.2, 0.4, 0.6, 0.8, 1.0], [0.0,0.2, 0.4, 0.6, 0.8, 1.0], fontsize=14)
     # plt.xticks([])
 
-    ax.set_title('CIRL w/ Hidden RC', fontsize=16)
-    ax.set_xticks(ind, fontsize=14)
-    ax.set_xticklabels(('CVI robot', 'StdVI robot'), fontsize=13)
-    # ax.legend(fontsize=13)
-
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    # ax.spines['bottom'].set_visible(False)
-    # ax.spines['left'].set_visible(False)
-
-    autolabel(ax, rects1, "left")
-    autolabel(ax, rects2, "right")
-    autolabel(ax, rects3, "right")
-
-    fig.tight_layout()
-    plt.savefig("greedy_private_iterative_100_multiprocess.png")
-    plt.show()
-
-def non_multiprocessed():
-    first_player = 'r'
-    # start_state = [2, 2, 2, 2]
-    all_colors_list = [BLUE, GREEN, RED, YELLOW]
-    task_reward = [1, 1, 1, 1]
-    # human_rew = [0.5, 0.1, 0.5, 0.1]
-    # h_rho = 0
-    # robot_rew = [0.5, 0.5, 0.1, 0.1]
-    r_rho = 1
-    # vi_type = 'stdvi'
-
-    cvi_percents = {0: [], 1: []}
-    stdvi_percents = {0: [], 1: []}
-
-    cvi_humanrew_percents = {0: [], 1: []}
-    stdvi_humanrew_percents = {0: [], 1: []}
-
-    num_exps = 100
-    for exp in range(num_exps):
-        print("exp = ", exp)
-        first_player = np.random.choice(['r', 'h'])
-        # start_state = [2 + np.random.randint(0, 5), 2 + np.random.randint(0, 5), 2 + np.random.randint(0, 5),
-        #                2 + np.random.randint(0, 5)]
-        # all_colors_list = [BLUE, GREEN, RED, YELLOW]
-        # human_rew = [np.random.uniform(0.1, 10.0), np.random.uniform(0.1, 10.0), np.random.uniform(0.1, 10.0),
-        #              np.random.uniform(0.1, 10.0)]
-        start_state = [np.random.randint(1, 5), np.random.randint(1, 5), np.random.randint(1, 5),
-                       np.random.randint(1, 5)]
-        all_colors_list = [BLUE, GREEN, RED, YELLOW]
-        human_rew = [np.random.uniform(0.1, 2.0), np.random.uniform(0.1, 2.0), np.random.uniform(0.1, 2.0),
-                     np.random.uniform(0.1, 2.0)]
-        # robot_rew = [np.random.uniform(0.1, 10.0), np.random.uniform(0.1, 10.0), np.random.uniform(0.1, 10.0),
-        #              np.random.uniform(0.1, 10.0)]
-        permutes = list(itertools.permutations(human_rew))
-        # print("permutes",permutes)
-        robot_rew = list(permutes[np.random.choice(np.arange(len(permutes)))])
-
-        print("TRUE human_rew = ", human_rew)
-        print("TRUE robot_rew = ", robot_rew)
-
-        for h_rho in [0]:
-            optimal_rew, best_human_rew = compute_optimal_rew(first_player, start_state, all_colors_list, task_reward,
-                                                              human_rew, h_rho, robot_rew, r_rho)
-            cvi_rew, cvi_human_rew = run_exp_config(start_state, all_colors_list, task_reward, human_rew, h_rho,
-                                                    robot_rew, r_rho, 'cvi')
-            stdvi_rew, stdvi_human_rew = run_exp_config(start_state, all_colors_list, task_reward, human_rew, h_rho,
-                                                        robot_rew, r_rho, 'stdvi')
-
-            # print()
-            # print("h_rho = ", h_rho)
-            # print("optimal_rew", optimal_rew)
-            # print("cvi_rew", cvi_rew)
-            # print("stdvi_rew", stdvi_rew)
-
-            cvi_percent_of_opt = cvi_rew / optimal_rew
-            stdvi_percent_of_opt = stdvi_rew / optimal_rew
-            cvi_percents[h_rho].append(cvi_percent_of_opt)
-            stdvi_percents[h_rho].append(stdvi_percent_of_opt)
-
-            cvi_percent_of_opt = cvi_human_rew / best_human_rew
-            stdvi_percent_of_opt = stdvi_human_rew / best_human_rew
-            cvi_humanrew_percents[h_rho].append(cvi_percent_of_opt)
-            stdvi_humanrew_percents[h_rho].append(stdvi_percent_of_opt)
-
-
-    robotrew_means = [np.round(np.mean(cvi_percents[0]), 2), np.round(np.mean(stdvi_percents[0]), 2)]
-    robotrew_stds = [np.round(np.std(cvi_percents[0]), 2), np.round(np.std(stdvi_percents[0]), 2)]
-
-    humanrew_means = [np.round(np.mean(cvi_humanrew_percents[0]), 2), np.round(np.mean(stdvi_humanrew_percents[0]), 2)]
-    humanrew_stds = [np.round(np.std(cvi_humanrew_percents[0]), 2), np.round(np.std(stdvi_humanrew_percents[0]), 2)]
-
-    # collab_means = [np.round(np.mean(cvi_percents[1]), 2), np.round(np.mean(stdvi_percents[1]), 2)]
-    # collab_stds = [np.round(np.std(cvi_percents[1]), 2), np.round(np.std(stdvi_percents[1]), 2)]
-    print("robot rew stat results: ",
-          stats.ttest_ind([elem * 100 for elem in cvi_percents[0]], [elem * 100 for elem in stdvi_percents[0]]))
-    print("human rew stat results: ",
-          stats.ttest_ind([elem * 100 for elem in cvi_humanrew_percents[0]],
-                          [elem * 100 for elem in stdvi_humanrew_percents[0]]))
-
-    ind = np.arange(len(robotrew_means))  # the x locations for the groups
-    width = 0.35  # the width of the bars
-
-    fig, ax = plt.subplots(figsize=(5, 5))
-    rects1 = ax.bar(ind - width / 2, robotrew_means, width, yerr=robotrew_stds,
-                    label='Robot Reward', capsize=10)
-    rects2 = ax.bar(ind + width / 2, humanrew_means, width, yerr=humanrew_stds,
-                    label='Human Reward', capsize=10)
-
-    # Add some text for labels, title and custom x-axis tick labels, etc.
-    ax.set_xlabel('Robot Type', fontsize=14)
-    ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
-    ax.set_ylim(-0.00, 1.5)
-
-    plt.yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], fontsize=14)
-    # plt.xticks([])
-
-    ax.set_title('CIRL w/ Hidden RC', fontsize=16)
+    ax.set_title('Collaboration w/ RC', fontsize=16)
     ax.set_xticks(ind, fontsize=14)
     ax.set_xticklabels(('CVI robot', 'StdVI robot'), fontsize=13)
     ax.legend(fontsize=13)
@@ -641,7 +656,9 @@ def non_multiprocessed():
 
     autolabel(ax, rects1, "left")
     autolabel(ax, rects2, "right")
+    autolabel(ax, rects3, "right")
 
     fig.tight_layout()
-    plt.savefig("greedy_private_iterative_100.png")
+    # plt.savefig("collab_public_iterative_100_multiprocessed.png")
     plt.show()
+

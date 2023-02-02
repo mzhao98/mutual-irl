@@ -21,13 +21,14 @@ def get_key_value_pair_with_max_value_from_dict(dictionary):
 
 
 class Human_Hypothesis():
-    def __init__(self, individual_reward, all_colors_list, task_reward, individual_rho, log_filename=''):
+    def __init__(self, individual_reward, true_robot_reward, all_colors_list, task_reward, individual_rho, log_filename=''):
         # Set individual robot objectives
         self.ind_rew = individual_reward
         self.task_reward = task_reward
         self.ind_rho = individual_rho
         self.log_filename = log_filename
         self.all_colors_list = all_colors_list
+        self.true_robot_reward = true_robot_reward
 
         # Set corpus of possible reward vectors
         # self.corpus =[-0.9, -0.5, 0.5, 1.0] # [1, 1, 1.1, 3]  #
@@ -110,7 +111,9 @@ class Human_Hypothesis():
     def act(self, input_state):
         human_action = None
         max_reward = -10000
-        (robot_rew, r_rho) = get_key_with_max_value_from_dict(self.beliefs_of_robot)
+
+        # (robot_rew, r_rho) = get_key_with_max_value_from_dict(self.beliefs_of_robot)
+        robot_rew = self.true_robot_reward
         # print("MAX BELIEF (of robot by human)", robot_rew)
 
         for color in self.all_colors_list:

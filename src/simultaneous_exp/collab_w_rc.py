@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
-from robot_model import Robot
-from human_model import Human
+from collab_robot import Robot
+from human_model import Greedy_Human, Collaborative_Human
 
 BLUE = 0
 GREEN = 1
@@ -83,11 +83,11 @@ class Simultaneous_Cleanup():
         return False
 
     def resolve_heavy_pickup(self, rh_action):
-        robot_rew, human_rew = 0,0
+        robot_rew, human_rew = -1, -1
         if rh_action in self.state_remaining_objects and self.state_remaining_objects[rh_action] > 0:
             self.state_remaining_objects[rh_action] -= 1
-            robot_rew = self.robot.ind_rew[rh_action]
-            human_rew = self.human.ind_rew[rh_action]
+            robot_rew += self.robot.ind_rew[rh_action]
+            human_rew += self.human.ind_rew[rh_action]
 
         self.total_reward['team'] += (robot_rew + human_rew)
         self.total_reward['robot'] += robot_rew
@@ -114,8 +114,8 @@ class Simultaneous_Cleanup():
             else:
                 self.state_remaining_objects[robot_action] -= 1
                 self.state_remaining_objects[human_action] -= 1
-                robot_rew = self.robot.ind_rew[robot_action]
-                human_rew = self.human.ind_rew[human_action]
+                robot_rew += self.robot.ind_rew[robot_action]
+                human_rew += self.human.ind_rew[human_action]
 
         self.total_reward['team'] += (robot_rew + human_rew)
         self.total_reward['robot'] += robot_rew
@@ -133,14 +133,14 @@ class Simultaneous_Cleanup():
             if robot_action_weight == 0:
                 if self.state_remaining_objects[robot_action] > 0:
                     self.state_remaining_objects[robot_action] -= 1
-                    robot_rew = self.robot.ind_rew[robot_action]
+                    robot_rew += self.robot.ind_rew[robot_action]
 
         if human_action is not None and human_action in self.state_remaining_objects:
             (human_action_color, human_action_weight) = human_action
             if human_action_weight == 0:
                 if self.state_remaining_objects[human_action] > 0:
                     self.state_remaining_objects[human_action] -= 1
-                    human_rew = self.human.ind_rew[human_action]
+                    human_rew += self.human.ind_rew[human_action]
 
         self.total_reward['team'] += (robot_rew + human_rew)
         self.total_reward['robot'] += robot_rew
@@ -188,8 +188,8 @@ class Simultaneous_Cleanup():
                 if robot_action in state_remaining_objects:
                     if robot_action in self.state_remaining_objects and state_remaining_objects[robot_action] > 0:
                         state_remaining_objects[robot_action] -= 1
-                        robot_rew = self.robot.ind_rew[robot_action]
-                        human_rew = self.human.ind_rew[robot_action]
+                        robot_rew += self.robot.ind_rew[robot_action]
+                        human_rew += self.human.ind_rew[robot_action]
 
             # single pick up object
             else:
@@ -198,8 +198,8 @@ class Simultaneous_Cleanup():
                         robot_rew, human_rew = 0, 0
                     elif state_remaining_objects[robot_action] == 1:
                         state_remaining_objects[robot_action] -= 1
-                        robot_rew = self.robot.ind_rew[robot_action]
-                        human_rew = self.human.ind_rew[human_action]
+                        robot_rew += self.robot.ind_rew[robot_action]
+                        human_rew += self.human.ind_rew[human_action]
                         pickup_agent = np.random.choice(['r', 'h'])
                         if pickup_agent == 'r':
                             human_rew = -1
@@ -208,8 +208,8 @@ class Simultaneous_Cleanup():
                     else:
                         state_remaining_objects[robot_action] -= 1
                         state_remaining_objects[human_action] -= 1
-                        robot_rew = self.robot.ind_rew[robot_action]
-                        human_rew = self.human.ind_rew[human_action]
+                        robot_rew += self.robot.ind_rew[robot_action]
+                        human_rew += self.human.ind_rew[human_action]
 
         else:
 
@@ -219,14 +219,14 @@ class Simultaneous_Cleanup():
                 if robot_action_weight == 0:
                     if state_remaining_objects[robot_action] > 0:
                         state_remaining_objects[robot_action] -= 1
-                        robot_rew = self.robot.ind_rew[robot_action]
+                        robot_rew += self.robot.ind_rew[robot_action]
 
             if human_action is not None and human_action in state_remaining_objects:
                 (human_action_color, human_action_weight) = human_action
                 if human_action_weight == 0:
                     if state_remaining_objects[human_action] > 0:
                         state_remaining_objects[human_action] -= 1
-                        human_rew = self.human.ind_rew[human_action]
+                        human_rew += self.human.ind_rew[human_action]
 
         done = False
         if sum(state_remaining_objects.values()) == 0:
@@ -439,6 +439,8 @@ class Simultaneous_Cleanup():
         self.reset()
         done = False
         total_reward = 0
+        human_only_reward = 0
+        robot_only_reward = 0
 
         human_trace = []
         robot_trace = []
@@ -466,6 +468,9 @@ class Simultaneous_Cleanup():
 
             next_state, (team_rew, robot_rew, human_rew), done = self.step_given_state(current_state, action)
             self.state_remaining_objects = next_state
+
+            human_only_reward += human_rew
+            robot_only_reward += robot_rew
             # print(f"current_state = ", current_state)
             # print("action=  ", action)
             # print("team_rew = ", team_rew)
@@ -482,12 +487,14 @@ class Simultaneous_Cleanup():
             if iters > 10:
                 break
 
-        return total_reward
+        return total_reward, human_only_reward, robot_only_reward
 
     def rollout_full_game_two_agents(self):
         self.reset()
         done = False
         total_reward = 0
+        human_only_reward = 0
+        robot_only_reward = 0
 
         iters = 0
         while not done:
@@ -500,6 +507,8 @@ class Simultaneous_Cleanup():
             action = {'robot': robot_action, 'human': human_action}
 
             (team_rew, robot_rew, human_rew), done = self.step(action)
+            human_only_reward += human_rew
+            robot_only_reward += robot_rew
             # print(f"current_state = ", current_state)
             # print("action=  ", action)
             # print("team_rew = ", team_rew)
@@ -509,17 +518,17 @@ class Simultaneous_Cleanup():
             total_reward += team_rew
 
             if iters > 10:
-                print("SOMETHING IS BROKEN")
+                print("Cannot finish")
                 break
 
-        return total_reward
+        return total_reward, human_only_reward, robot_only_reward
 
     def compute_optimal_performance(self):
         self.enumerate_states()
         self.value_iteration()
 
-        optimal_rew = self.rollout_full_game_joint_optimal()
-        return optimal_rew
+        optimal_rew, human_only_reward, robot_only_reward = self.rollout_full_game_joint_optimal()
+        return optimal_rew, human_only_reward, robot_only_reward
 
 
 
@@ -538,7 +547,7 @@ def test_optimal():
     print("opt = ", opt)
 
 
-if __name__ == '__main__':
+def test_one_exp():
     robot_rew = {(BLUE, 0): 2, (RED, 0): 3, (GREEN, 0): 1, (YELLOW, 0): 1,
                 (BLUE, 1): 4, (RED, 1): 6, (GREEN, 1): -1, (YELLOW, 1): -1}
 
@@ -553,11 +562,7 @@ if __name__ == '__main__':
 
     robot = Robot(robot_rew, human_rew, starting_objects, vi_type='cvi')
     human = Human(human_rew, robot_rew, starting_objects)
-
     robot.setup_value_iteration()
-
-
-    # human = Robot(robot_rew, human_rew, starting_objects)
     env = Simultaneous_Cleanup(robot, human, starting_objects)
     final_team_rew = env.rollout_full_game_two_agents()
     print("CVI final_team_rew = ", final_team_rew)
@@ -572,3 +577,320 @@ if __name__ == '__main__':
     env = Simultaneous_Cleanup(robot, human, starting_objects)
     opt = env.compute_optimal_performance()
     print("opt = ", opt)
+
+
+def autolabel(ax, rects, xpos='center'):
+    """
+    Attach a text label above each bar in *rects*, displaying its height.
+
+    *xpos* indicates which side to place the text w.r.t. the center of
+    the bar. It can be one of the following {'center', 'right', 'left'}.
+    """
+
+    ha = {'center': 'center', 'right': 'left', 'left': 'right'}
+    offset = {'center': 0, 'right': -4, 'left': 4}
+
+    for rect in rects:
+        height = rect.get_height()
+        # print("height",height)
+        # height = [np.round(x,2) for x in height]
+        ax.annotate('{}'.format(height),
+                    xy=(rect.get_x() + rect.get_width() / 2, height + 0.08),
+                    xytext=(offset[xpos] * 3, 3),  # use 3 points offset
+                    textcoords="offset points",  # in both directions
+                    ha=ha[xpos], va='bottom', fontsize=14)
+
+def run_k_rounds(exp_num, task_reward, h_alpha=0.0):
+    print("exp_num = ", exp_num)
+
+    robot_rew = {(BLUE, 0): np.random.randint(1,10),
+                 (RED, 0): np.random.randint(1,10),
+                 (GREEN, 0): np.random.randint(1,10),
+                 (YELLOW, 0): np.random.randint(1,10),
+                 (BLUE, 1): np.random.randint(1,10),
+                 (RED, 1): np.random.randint(1,10),
+                 (GREEN, 1): np.random.randint(1,10),
+                 (YELLOW, 1): np.random.randint(1,10)}
+
+    # human_rew = {(BLUE, 0): np.random.randint(1, 10),
+    #              (RED, 0): np.random.randint(1, 10),
+    #              (GREEN, 0): np.random.randint(1, 10),
+    #              (YELLOW, 0): np.random.randint(1, 10),
+    #              (BLUE, 1): np.random.randint(1, 10),
+    #              (RED, 1): np.random.randint(1, 10),
+    #              (GREEN, 1): np.random.randint(1, 10),
+    #              (YELLOW, 1): np.random.randint(1, 10)}
+    permutes = list(itertools.permutations(robot_rew.values()))
+    # print("permutes",permutes)
+    human_rew_values = list(permutes[np.random.choice(np.arange(len(permutes)))])
+    object_keys = list(robot_rew.keys())
+    human_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
+
+    all_objects = [(BLUE, 0), (YELLOW, 0), (GREEN, 0), (RED, 0), (BLUE, 1),(GREEN, 1), (RED, 1), (YELLOW, 1)]
+    n_objects = np.random.randint(4,10)
+    starting_objects = [all_objects[i] for i in np.random.choice(np.arange(len(all_objects)), size=n_objects, replace=True)]
+
+    robot = Robot(robot_rew, human_rew, starting_objects, vi_type='cvi')
+    human = Collaborative_Human(human_rew, robot_rew, starting_objects, 0)
+    env = Simultaneous_Cleanup(robot, human, starting_objects)
+    optimal_rew, best_human_rew, best_robot_rew = env.compute_optimal_performance()
+    # print("opt = ", optimal_rew)
+
+    # Test 2 greedy
+    robot = Greedy_Human(robot_rew, human_rew, starting_objects, 0)
+    human = Greedy_Human(human_rew, robot_rew, starting_objects, 0)
+    env = Simultaneous_Cleanup(robot, human, starting_objects)
+    greedy_team_rew, greedy_human_rew, greedy_robot_rew = env.rollout_full_game_two_agents()
+    # print("Fully 2 greedy final_team_rew = ", greedy_team_rew)
+
+    robot = Robot(robot_rew, human_rew, starting_objects, vi_type='cvi')
+    human = Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha)
+    robot.setup_value_iteration()
+    env = Simultaneous_Cleanup(robot, human, starting_objects)
+    cvi_rew, cvi_human_rew, cvi_robot_rew = env.rollout_full_game_two_agents()
+    # print("CVI final_team_rew = ", cvi_rew)
+
+    robot = Robot(robot_rew, human_rew, starting_objects, vi_type='stdvi')
+    human = Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha)
+    robot.setup_value_iteration()
+    env = Simultaneous_Cleanup(robot, human, starting_objects)
+    stdvi_rew, stdvi_human_rew, stdvi_robot_rew = env.rollout_full_game_two_agents()
+    # print("StdVI final_team_rew = ", stdvi_rew)
+
+
+
+    altruism_case = 'opt'
+    if greedy_team_rew < optimal_rew:
+        altruism_case = 'subopt'
+
+    if cvi_rew > optimal_rew:
+        print("PROBLEM CVI larger than OPT")
+        print("optimal_rew", optimal_rew)
+        print("cvi_rew = ", cvi_rew)
+        print()
+
+
+    cvi_percent_of_opt_team = max(0,cvi_rew) / optimal_rew
+    stdvi_percent_of_opt_team = max(0,stdvi_rew) / optimal_rew
+
+    # cvi_percent_of_opt_human = max(0,cvi_human_rew) / best_human_rew
+    # stdvi_percent_of_opt_human = max(0,stdvi_human_rew) / best_human_rew
+    #
+    # cvi_percent_of_opt_robot = max(0,cvi_robot_rew) / best_robot_rew
+    # stdvi_percent_of_opt_robot = max(0,stdvi_robot_rew) / best_robot_rew
+    cvi_percent_of_opt_human, stdvi_percent_of_opt_human, cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot = 0,0,0,0
+
+    print("done with exp_num = ", exp_num)
+    return cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
+           cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case
+
+
+def run_experiment():
+    np.random.seed(0)
+    task_reward = [1, 1, 1, 1]
+
+    cvi_percents = []
+    stdvi_percents = []
+
+    cvi_humanrew_percents = []
+    stdvi_humanrew_percents = []
+
+    cvi_robotrew_percents = []
+    stdvi_robotrew_percents = []
+
+    num_exps = 10
+
+    n_altruism = 0
+    n_total = 0
+    n_greedy = 0
+
+    percent_change = {}
+    for percent in np.arange(-1.0, 1.01, step=0.01):
+        percent_change[np.round(percent, 2)] = 0
+
+    with Pool(processes=100) as pool:
+        k_round_results = pool.starmap(run_k_rounds, [(exp_num, task_reward) for exp_num in range(num_exps)])
+        for result in k_round_results:
+            cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
+            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case = result
+
+            if altruism_case == 'opt':
+                n_greedy += 1
+            if altruism_case == 'subopt':
+                n_altruism += 1
+            n_total += 1
+
+            # if altruism_case == 'opt':
+            #     continue
+
+            cvi_percents.append(cvi_percent_of_opt_team)
+            stdvi_percents.append(stdvi_percent_of_opt_team)
+
+            cvi_humanrew_percents.append(cvi_percent_of_opt_human)
+            stdvi_humanrew_percents.append(stdvi_percent_of_opt_human)
+
+            cvi_robotrew_percents.append(cvi_percent_of_opt_robot)
+            stdvi_robotrew_percents.append(stdvi_percent_of_opt_robot)
+
+            diff = cvi_percent_of_opt_team - stdvi_percent_of_opt_team
+            diff = np.round(diff, 2)
+            print("percent_change = ", percent_change)
+            percent_change[diff] += 1
+
+
+    teamrew_means = [np.round(np.mean(cvi_percents), 2), np.round(np.mean(stdvi_percents), 2)]
+    teamrew_stds = [np.round(np.std(cvi_percents), 2), np.round(np.std(stdvi_percents), 2)]
+
+    # humanrew_means = [np.round(np.mean(cvi_humanrew_percents), 2), np.round(np.mean(stdvi_humanrew_percents), 2)]
+    # humanrew_stds = [np.round(np.std(cvi_humanrew_percents), 2), np.round(np.std(stdvi_humanrew_percents), 2)]
+    #
+    # robotrew_means = [np.round(np.mean(cvi_robotrew_percents), 2), np.round(np.mean(stdvi_robotrew_percents), 2)]
+    # robotrew_stds = [np.round(np.std(cvi_robotrew_percents), 2), np.round(np.std(stdvi_robotrew_percents), 2)]
+
+    print("team rew stat results: ", stats.ttest_ind([elem*100 for elem in cvi_percents], [elem*100 for elem in stdvi_percents]))
+    # print("human rew stat results: ",
+    #       stats.ttest_ind([elem * 100 for elem in cvi_humanrew_percents], [elem * 100 for elem in stdvi_humanrew_percents]))
+    # print("robot rew stat results: ",
+    #       stats.ttest_ind([elem * 100 for elem in cvi_robotrew_percents],
+    #                       [elem * 100 for elem in cvi_robotrew_percents]))
+
+    print("n_altruism = ", n_altruism)
+    print("n_greedy = ", n_greedy)
+    print("n_total = ", n_total)
+
+    X = [d for d in percent_change]
+    sum_Y = sum([percent_change[d] for d in percent_change])
+    Y = [percent_change[d]/sum_Y for d in percent_change]
+
+    # Compute the CDF
+    CY = np.cumsum(Y)
+
+    # Plot both
+    # fig, ax = plt.subplots(figsize=(5, 5))
+    plt.title('Collaboration w/ Hidden RC', fontsize=16)
+    plt.plot(X, Y, label='Diff PDF')
+    plt.plot(X, CY, 'r--', label='Diff CDF')
+    plt.ylabel("% of Opt CVI - % of Opt StdVI")
+
+    plt.legend()
+    plt.savefig("simultaneous_collab_1_cdf.png")
+    plt.show()
+
+
+
+
+
+
+    # collab_means = [np.round(np.mean(cvi_percents[1]), 2), np.round(np.mean(stdvi_percents[1]), 2)]
+    # collab_stds = [np.round(np.std(cvi_percents[1]), 2), np.round(np.std(stdvi_percents[1]), 2)]
+
+    ind = np.arange(len(teamrew_means))  # the x locations for the groups
+    width = 0.2  # the width of the bars
+
+    fig, ax = plt.subplots(figsize=(5, 5))
+    rects1 = ax.bar(ind - width, teamrew_means, width, yerr=teamrew_stds,
+                    label='Team Reward', capsize=10)
+    # rects2 = ax.bar(ind, humanrew_means, width, yerr=humanrew_stds,
+    #                 label='Human Reward', capsize=10)
+    # rects3 = ax.bar(ind + width, robotrew_means, width, yerr=robotrew_stds,
+    #                 label='Robot Reward', capsize=10)
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_xlabel('Robot Type', fontsize=14)
+    ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
+    # ax.set_ylim(-0.00, 1.5)
+
+    plt.yticks([0.0,0.2, 0.4, 0.6, 0.8, 1.0], [0.0,0.2, 0.4, 0.6, 0.8, 1.0], fontsize=14)
+    # plt.xticks([])
+
+    ax.set_title('Collaboration w/ Hidden RC', fontsize=16)
+    ax.set_xticks(ind, fontsize=14)
+    ax.set_xticklabels(('CVI robot', 'StdVI robot'), fontsize=13)
+    ax.legend(fontsize=13)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    # ax.spines['bottom'].set_visible(False)
+    # ax.spines['left'].set_visible(False)
+
+    autolabel(ax, rects1, "left")
+    # autolabel(ax, rects2, "right")
+    # autolabel(ax, rects3, "right")
+
+    fig.tight_layout()
+    plt.savefig("simultaneous_collab_1.png")
+    plt.show()
+
+
+def run_experiment_h_alpha():
+
+    task_reward = [1, 1, 1, 1]
+
+
+
+    num_exps = 5
+
+    n_altruism = 0
+    n_total = 0
+    n_greedy = 0
+
+    h_alpha_to_avg_percent_cvi = {}
+    for h_alpha in np.arange(0.0, 1.3, step=0.5):
+
+        cvi_percents = []
+        stdvi_percents = []
+
+        cvi_humanrew_percents = []
+        stdvi_humanrew_percents = []
+
+        cvi_robotrew_percents = []
+        stdvi_robotrew_percents = []
+
+        with Pool(processes=10) as pool:
+            k_round_results = pool.starmap(run_k_rounds, [(exp_num, task_reward, h_alpha) for exp_num in range(num_exps)])
+            for result in k_round_results:
+                cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
+                cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case = result
+
+                if altruism_case == 'opt':
+                    n_greedy += 1
+                if altruism_case == 'subopt':
+                    n_altruism += 1
+                n_total += 1
+
+                # if altruism_case == 'opt':
+                #     continue
+
+                cvi_percents.append(cvi_percent_of_opt_team)
+                stdvi_percents.append(stdvi_percent_of_opt_team)
+
+                cvi_humanrew_percents.append(cvi_percent_of_opt_human)
+                stdvi_humanrew_percents.append(stdvi_percent_of_opt_human)
+
+                cvi_robotrew_percents.append(cvi_percent_of_opt_robot)
+                stdvi_robotrew_percents.append(stdvi_percent_of_opt_robot)
+
+                diff = cvi_percent_of_opt_team - stdvi_percent_of_opt_team
+                diff = np.round(diff, 2)
+
+        h_alpha_to_avg_percent_cvi[h_alpha] = np.round(np.mean(cvi_percents), 2)
+
+
+    X = [d for d in h_alpha_to_avg_percent_cvi]
+    Y = [h_alpha_to_avg_percent_cvi[d] for d in h_alpha_to_avg_percent_cvi]
+
+    # fig, ax = plt.subplots(figsize=(5, 5))
+    plt.title('Collaboration w/ Hidden RC', fontsize=16)
+    plt.plot(X, Y, label='CVI')
+    plt.xlabel("Percent of Optimal")
+
+    plt.legend()
+    plt.savefig("simultaneous_collab_1_h_alph.png")
+    plt.show()
+
+
+
+if __name__ == "__main__":
+    run_experiment()
+    # run_experiment_h_alpha()
+

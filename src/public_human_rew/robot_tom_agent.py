@@ -18,7 +18,7 @@ from human_agent import Human_Hypothesis
 
 
 def get_key_with_max_value_from_dict(dictionary):
-    return max(dictionary.items(), key=operator.itemgetter(1))[0]
+    return max(dictionary.items(), key=operator.itemgetter(1))[0], max(dictionary.values())
 
 def get_key_value_pair_with_max_value_from_dict(dictionary):
     return max(dictionary.items(), key=operator.itemgetter(1))[0], dictionary[max(dictionary.items(), key=operator.itemgetter(1))[0]]
@@ -120,7 +120,8 @@ class Robot_Model():
         prob_action_given_state = prob_action_given_state_numer / prob_action_given_state_denom
 
         total_weight = 0
-        (robot_reward, robot_rho) = get_key_with_max_value_from_dict(self.human_beliefs_of_robot)
+        # (robot_reward, robot_rho) = get_key_with_max_value_from_dict(self.human_beliefs_of_robot)
+        robot_reward = self.ind_rew
         for human_model_params in self.beliefs_over_human_models:
             (candidate_reward, candidate_rho) = human_model_params
 
@@ -222,14 +223,23 @@ class Robot_Model():
 
     def act(self, input_state, iteration):
         if iteration == 0:
-            (human_rew, h_rho) = get_key_with_max_value_from_dict(self.beliefs_over_human_models)
-            (robot_rew, r_rho) = get_key_with_max_value_from_dict(self.human_beliefs_of_robot)
+            (human_rew, h_rho), max_h_prob = get_key_with_max_value_from_dict(self.beliefs_over_human_models)
+            (robot_rew, r_rho), _ = get_key_with_max_value_from_dict(self.human_beliefs_of_robot)
 
             if self.true_human_reward is not None:
                 human_rew = self.true_human_reward
                 h_rho = 1
 
-            # print("MAX BELIEF (of human by robot)", human_rew)
+            # print(f"ROBOT BELIEVES HUMAN IS: {human_rew} with prob {max_h_prob}")
+            # if max_h_prob < 0.5:
+            #     print("no human model used")
+            #     human_rew = [0,0,0,0]
+            confidence = 1/(1+np.exp(-60 * (max_h_prob - 0.4)))
+            confidence = np.round(confidence, 2)
+            human_rew = [np.round(elem * confidence,2) for elem in human_rew]
+            # print("confidence = ", confidence)
+            # print("human_rew = ", human_rew)
+
             # print("MAX BELIEF (of human's beliefs of robot by robot)", robot_rew)
 
             # self.himdp = HiMDP(input_state, self.all_colors_list, self.task_reward, human_rew, h_rho,
