@@ -103,7 +103,9 @@ class Collaborative_Human:
         robot_action = joint_action[0]
         human_action = joint_action[1]
 
-        robot_rew, human_rew = -1, -1
+        robot_rew = 0
+        human_rew = 0
+        team_rew = -2
         # robot_rew_given_human, human_rew_given_robot = -1, -1
         if robot_action == human_action and human_action is not None:
             # collaborative pick up object
@@ -112,8 +114,9 @@ class Collaborative_Human:
                 if robot_action in state_remaining_objects:
                     if robot_action in state_remaining_objects and state_remaining_objects[robot_action] > 0:
                         state_remaining_objects[robot_action] -= 1
-                        robot_rew += self.true_robot_rew[robot_action]
-                        human_rew += self.ind_rew[robot_action]
+                        # robot_rew += self.true_robot_rew[robot_action]
+                        # human_rew += self.ind_rew[robot_action]
+                        team_rew += (self.true_robot_rew[robot_action] + self.ind_rew[robot_action])
 
             # single pick up object
             else:
@@ -122,13 +125,15 @@ class Collaborative_Human:
                         robot_rew, human_rew = -1, -1
                     elif state_remaining_objects[robot_action] == 1:
                         state_remaining_objects[robot_action] -= 1
-                        robot_rew += self.true_robot_rew[robot_action]
+
+                        # pickup_agent = np.random.choice(['r', 'h'])
+                        # if pickup_agent == 'r':
+                        #     # human_rew = 0
+                        #     robot_rew += self.true_robot_rew[robot_action]
+                        # else:
+                        # robot_rew = -1
                         human_rew += self.ind_rew[human_action]
-                        pickup_agent = np.random.choice(['r', 'h'])
-                        if pickup_agent == 'r':
-                            human_rew = -1
-                        else:
-                            robot_rew = -1
+
                     else:
                         state_remaining_objects[robot_action] -= 1
                         state_remaining_objects[human_action] -= 1
@@ -150,7 +155,7 @@ class Collaborative_Human:
                         state_remaining_objects[human_action] -= 1
                         human_rew += self.ind_rew[human_action]
 
-        team_rew = robot_rew + human_rew
+        # team_rew = robot_rew + human_rew
         return team_rew, robot_rew, human_rew
 
 
@@ -159,7 +164,8 @@ class Collaborative_Human:
         other_actions = []
         max_reward = -100
         for (candidate_r_act, candidate_h_act) in self.possible_actions:
-            candidate_rew, _, _ = self.step_given_state(state, (candidate_r_act, candidate_h_act))
+            team_rew, r_rew, h_rew = self.step_given_state(state, (candidate_r_act, candidate_h_act))
+            candidate_rew = team_rew + r_rew + h_rew
             if candidate_h_act is not None:
                 if candidate_rew == max_reward:
                     if candidate_h_act not in best_human_act:

@@ -249,7 +249,7 @@ class RingOfFire():
 
 
 
-def plot_results(experiment_results, num_rounds, true_human_order, savename="images/test.png"):
+def plot_results(experiment_results, num_rounds, true_human_order, savename="old_images/test.png"):
 
     means = []
     stds = []

@@ -92,7 +92,7 @@ class RingOfFire():
         # print("self.total_reward", self.total_reward)
         return self.total_reward
 
-def plot_results(experiment_results, num_rounds, savename="images/test.png"):
+def plot_results(experiment_results, num_rounds, savename="old_images/test.png"):
 
     means = []
     stds = []
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     experiment_results[1] = first_results
     experiment_results[2] = second_results
 
-    plot_results(experiment_results, num_rounds, "images/exp24_noisy_true_10.png")
+    plot_results(experiment_results, num_rounds, "old_images/exp24_noisy_true_10.png")
 
 
 

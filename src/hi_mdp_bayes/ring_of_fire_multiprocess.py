@@ -92,7 +92,7 @@ class RingOfFire():
         # print("self.total_reward", self.total_reward)
         return self.total_reward
 
-def plot_results(experiment_results, num_rounds, true_human_order, savename="images/test.png"):
+def plot_results(experiment_results, num_rounds, true_human_order, savename="old_images/test.png"):
 
     means = []
     stds = []
@@ -197,7 +197,7 @@ def run_experiment(vi_type, n_seeds, true_human_order):
     experiment_results[2] = second_results
     experiment_results[3] = both_results
 
-    plot_results(experiment_results, num_rounds, true_human_order, f"images/exp31_opt_true-order-{true_human_order}_{vi_type}-actual_100p_{num_seeds}-seeds.png")
+    plot_results(experiment_results, num_rounds, true_human_order, f"old_images/exp31_opt_true-order-{true_human_order}_{vi_type}-actual_100p_{num_seeds}-seeds.png")
 
     print(f"Model {vi_type}: Results:")
 
