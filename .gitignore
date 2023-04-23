@@ -10,7 +10,7 @@ src/julia_mirl/
 src/simultaneous_exp/data/
 src/simultaneous_exp/old_images/
 src/simultaneous_exp/images/
-
+src/clean_simultanenous_exp/images/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
