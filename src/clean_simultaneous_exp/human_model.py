@@ -38,16 +38,19 @@ class Greedy_Human:
                 self.possible_actions.append(obj_tuple)
 
     def act(self, state):
+        # print("human state, ", state)
+
         # best_human_act = []
         other_actions = []
         max_reward = -100
         h_action = None
+        # state = None
         for candidate_h_act in self.possible_actions:
             if candidate_h_act is not None:
-                if state[candidate_h_act]> 0:
+                if state[candidate_h_act] > 0:
                     candidate_rew = self.ind_rew[candidate_h_act]
                 else:
-                    candidate_rew = -1
+                    candidate_rew = -1000
 
                 # if candidate_rew == max_reward:
                 #     if candidate_h_act not in best_human_act:
@@ -75,7 +78,7 @@ class Greedy_Human:
         # if r < self.h_alpha:
         #     if len(other_actions) > 0:
         #         h_action = other_actions[np.random.choice(np.arange(len(other_actions)))]
-
+        # print("human_acting", state)
         return h_action
 
     def act_old(self, state):
@@ -203,12 +206,15 @@ class Collaborative_Human:
     def act(self, state):
         # best_human_act = []
         other_actions = []
-        max_reward = -100
+        max_reward = -2
         h_action = None
         for (candidate_r_act, candidate_h_act) in self.possible_actions:
             team_rew, r_rew, h_rew = self.step_given_state(state, (candidate_r_act, candidate_h_act))
+            # print("(candidate_r_act, candidate_h_act)", (candidate_r_act, candidate_h_act))
             candidate_rew = team_rew + r_rew + h_rew
+            # print("candidate_rew", candidate_rew)
             if candidate_h_act is not None:
+                # if state[candidate_h_act] > 0
                 # if candidate_rew == max_reward:
                 #     if candidate_h_act not in best_human_act:
                 #         best_human_act.append(candidate_h_act)

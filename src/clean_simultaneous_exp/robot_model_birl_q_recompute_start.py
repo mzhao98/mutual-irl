@@ -26,7 +26,7 @@ from datetime import datetime
 
 
 class Robot:
-    def __init__(self, team_rew, ind_rew, human_rew, starting_state, robot_knows_human_rew, permutes, vi_type, is_collaborative_human, update_threshold=0.9):
+    def __init__(self, team_rew, ind_rew, human_rew, starting_state, robot_knows_human_rew, permutes, vi_type, is_collaborative_human):
         self.team_rew = team_rew
         self.ind_rew = ind_rew
         self.true_human_rew = human_rew
@@ -53,12 +53,21 @@ class Robot:
         self.epsilson = 0.0001
         self.gamma = 0.99
         self.greedy_gamma = 0.9
-        self.human_gamma = 0.0001
+        # self.human_gamma = 0.0001
         self.maxiter = 100
         self.small_maxiter = 10
         self.beta = 15
         self.confidence_threshold = 0.6
-        self.update_threshold = update_threshold
+
+        # human model reset
+        self.hmr_transitions, self.hmr_rewards, self.hmr_state_to_idx, self.hmr_idx_to_action, \
+        self.hmr_idx_to_state, self.hmr_action_to_idx = None, None, None, None, None, None
+        self.hmr_vf = None
+        self.hmr_pi = None
+        self.hmr_policy = None
+        self.human_gamma = 0.01
+        self.hmr_state_remaining_objects = {}
+        self.hmr_possible_actions = [None]
 
         self.vi_type = vi_type
 
@@ -86,6 +95,16 @@ class Robot:
                 self.possible_actions.append(obj_tuple)
             else:
                 self.state_remaining_objects[obj_tuple] += 1
+
+    def hmr_reset(self, hmr_starting_objects):
+        self.hmr_state_remaining_objects = {}
+        self.hmr_possible_actions = [None]
+        for obj_tuple in hmr_starting_objects:
+            if obj_tuple not in self.hmr_state_remaining_objects:
+                self.hmr_state_remaining_objects[obj_tuple] = 1
+                self.hmr_possible_actions.append(obj_tuple)
+            else:
+                self.hmr_state_remaining_objects[obj_tuple] += 1
 
     def set_beliefs_with_true_reward(self):
         # self.human_rew = copy.deepcopy(self.true_human_rew)
@@ -276,34 +295,69 @@ class Robot:
 
             # print(f"belief {self.beliefs[idx]['reward_dict']} likelihood is {self.beliefs[idx]['prob']}")
 
+    def recompute_q_values(self, current_start_state):
+        # self.human_rew = copy.deepcopy(self.true_human_rew)
+        # print("Beginning recomputing q values")
+        self.hmr_enumerate_states(current_start_state)
+
+        object_keys = list(self.ind_rew.keys())
+        self.belief_idx_to_q_values = {}
+        for idx in self.beliefs:
+            # print("starting idx = ", idx)
+            human_rew_dict = self.beliefs[idx]['reward_dict']
+
+            q_values_table = self.human_candidate_value_iteration(human_rew_dict)
+            self.belief_idx_to_q_values[idx] = {}
+            self.belief_idx_to_q_values[idx]['reward_dict'] = human_rew_dict
+            self.belief_idx_to_q_values[idx] = q_values_table
+
+        # print("Done recomputing q values")
+
+
+
     def update_based_on_h_action(self, current_state, robot_action, human_action):
+        plot = True
         # print("current_state, robot_action, human_action", (current_state, robot_action, human_action))
+        self.recompute_q_values(current_state)
+
+        # Save data
         self.episode_history.append((current_state, robot_action, human_action))
-
-        if self.robot_knows_human_rew is True:
-            return
-
         self.history_of_human_beliefs.append(copy.deepcopy(self.beliefs))
         self.history_of_robot_beliefs_of_true_human_rew.append(self.beliefs[self.true_human_rew_idx]['prob'])
 
         max_key = max(self.beliefs, key=lambda keyname: self.beliefs[keyname]['prob'])
         self.history_of_robot_beliefs_of_max_human_rew.append(self.beliefs[max_key]['reward_dict'])
 
-        joint_action = (robot_action, human_action)
-        joint_action_idx = self.action_to_idx[joint_action]
+        if self.robot_knows_human_rew is True:
+            return
 
+        # print("joint actions", self.hmr_get_all_possible_joint_actions())
+        # print("current_state = ", current_state)
+        joint_action = (robot_action, human_action)
+        # print("joint_action", joint_action)
+        if joint_action not in self.hmr_action_to_idx:
+            # human_action = None
+            joint_action = (robot_action, None)
+        joint_action_idx = self.hmr_action_to_idx[joint_action]
+
+
+        # pdb.set_trace()
         current_state_tup = self.state_to_tuple(current_state)
-        state_idx = self.state_to_idx[current_state_tup]
+        state_idx = self.hmr_state_to_idx[current_state_tup]
 
         # print("current_state_tup", current_state_tup)
 
         normalize_Z = 0
+        if plot:
+            plt.figure()
+            # plt.ylim(0, 3)
+            # plt.yticks([1, 2], ['H', 'R'], color='black', fontweight='bold', fontsize='17')
 
         dict_prob_obs_given_theta = {}
-        print("true idex", self.true_human_rew_idx)
-        print("current_state", current_state)
-        print("human_action", human_action)
-        print("current_state[human_action]", current_state[human_action])
+        # print("true idex", self.true_human_rew_idx)
+        # print("current_state", current_state)
+        # print("human_action", human_action)
+        # print("current_state[human_action]", current_state[human_action])
         for idx in self.beliefs:
             # human_rew_dict = self.beliefs[idx]['reward_dict']
             q_values_table = self.belief_idx_to_q_values[idx]
@@ -313,88 +367,20 @@ class Robot:
             #     human_only_rew_for_action = h_reward_hypothesis[human_action]
             # else:
             #     human_only_rew_for_action = h_reward_hypothesis[human_action] + self.ind_rew[robot_action]
-            human_only_rew_for_action = 0
-            max_composite_reward_for_human_action = -100
-            for r_action in self.possible_actions:
-                human_r, robot_r = 0, 0
-                copy_current_state = copy.deepcopy(current_state)
 
-                if human_action is not None:
-                    if human_action[1] == 1 and human_action == r_action and copy_current_state[human_action] > 0:
-                        copy_current_state[human_action] -= 1
-                        human_r = h_reward_hypothesis[human_action]
-                        robot_r = self.ind_rew[r_action]
+            human_only_rew_for_action = q_values_table[state_idx, joint_action_idx]/10
+            # human_only_rew_for_action = 0
+            # for r_action in self.hmr_possible_actions:
+            #     candidate_pair_true_h = (r_action, human_action)
+            #     candidate_pair_true_h_idx = self.hmr_action_to_idx[candidate_pair_true_h]
+            #
+            #     q_value_for_candidate_pair_true_h = q_values_table[state_idx, candidate_pair_true_h_idx]
+            #     human_only_rew_for_action += q_value_for_candidate_pair_true_h
 
-                    if human_action[1] == 0 and copy_current_state[human_action] > 0:
-                        copy_current_state[human_action] -= 1
-                        human_r = h_reward_hypothesis[human_action]
-
-                if r_action is not None:
-                    if r_action[1] == 0 and copy_current_state[r_action] > 0:
-                        copy_current_state[r_action] -= 1
-                        robot_r = self.ind_rew[r_action]
-
-                team_r = -2
-                candidate_rew = team_r + robot_r + human_r
-                if candidate_rew > max_composite_reward_for_human_action:
-                    max_composite_reward_for_human_action = candidate_rew
-
-            # human_only_rew_for_action = sum([(h_reward_hypothesis[human_action] + self.ind_rew[r_action]) for r_action in self.possible_actions])
-            human_only_rew_for_action = max_composite_reward_for_human_action
-            print("human_only_rew_for_action", human_only_rew_for_action)
-            # pdb.set_trace()
-
-            if current_state[human_action] == 0:
-                human_only_rew_for_action = -2
-
-            sum_Z = 0
-            all_possible_rews = []
-            for possible_action in h_reward_hypothesis:
-                if current_state[possible_action] > 0:
-
-                    human_only_rew_for_possible_action = -100
-                    for r_action in self.possible_actions:
-                        human_r, robot_r = 0, 0
-                        copy_current_state = copy.deepcopy(current_state)
-
-                        if possible_action is not None:
-                            if possible_action[1] == 1 and possible_action == r_action and copy_current_state[
-                                possible_action] > 0:
-                                copy_current_state[possible_action] -= 1
-                                human_r = h_reward_hypothesis[possible_action]
-                                robot_r = self.ind_rew[r_action]
-
-                            if possible_action[1] == 0 and copy_current_state[possible_action] > 0:
-                                copy_current_state[possible_action] -= 1
-                                human_r = h_reward_hypothesis[possible_action]
-
-                        if r_action is not None:
-                            if r_action[1] == 0 and copy_current_state[r_action] > 0:
-                                copy_current_state[r_action] -= 1
-                                robot_r = self.ind_rew[r_action]
-
-                        team_r = -2
-                        candidate_rew = team_r + robot_r + human_r
-                        if candidate_rew > human_only_rew_for_possible_action:
-                            human_only_rew_for_possible_action = candidate_rew
-
-
-                    sum_Z += human_only_rew_for_possible_action
-                    all_possible_rews.append(human_only_rew_for_possible_action)
-
-            # print("sum_Z", sum_Z)
-            # human_only_rew_for_action /= sum_Z
-            if human_only_rew_for_action == max(all_possible_rews):
-                human_only_rew_for_action = self.update_threshold
-            else:
-                human_only_rew_for_action = 1-self.update_threshold
-
-
-            print(f"idx = {idx}: {h_reward_hypothesis}")
-            print("human_only_rew_for_action", human_only_rew_for_action)
-            # q_value_for_obs = q_values_table[state_idx, joint_action_idx]
+            # print("human_only_rew_for_action = ", human_only_rew_for_action)
             exp_q_value_for_obs = np.exp(self.beta * human_only_rew_for_action)
-            # print(f"idx = {idx}, human_only_rew_for_action = {human_only_rew_for_action}, exp_q_value_for_obs = {np.round(exp_q_value_for_obs, 2)}")
+            # print("exp_q_value_for_obs", exp_q_value_for_obs)
+            print(f"idx = {idx}, human_only_rew_for_action = {human_only_rew_for_action}, exp_q_value_for_obs = {np.round(exp_q_value_for_obs, 2)}")
             # print("h_reward_hypothesis", h_reward_hypothesis)
             # exp_q_value_for_obs = q_value_for_obs
 
@@ -408,11 +394,11 @@ class Robot:
             dict_prob_obs_given_theta[idx] = exp_q_value_for_obs
 
         if normalize_Z == 0:
-            # print("PROBLEM WITH Z=0 at dict_prob_obs_given_theta")
+            print("PROBLEM WITH Z=0 at dict_prob_obs_given_theta")
             normalize_Z = 0.01
         for idx in dict_prob_obs_given_theta:
             dict_prob_obs_given_theta[idx] = dict_prob_obs_given_theta[idx] / normalize_Z
-            # print(f"idx = {idx}, likelihood value = {np.round(dict_prob_obs_given_theta[idx],2)}")
+            print(f"Intermetd: idx = {idx}, likelihood value = {np.round(dict_prob_obs_given_theta[idx],2)}")
 
         normalization_denominator = 0
         for idx in self.beliefs:
@@ -424,15 +410,30 @@ class Robot:
 
         # pdb.set_trace()
         if normalization_denominator == 0:
-            # print("PROBLEM WITH Z=0 at beliefs")
+            print("PROBLEM WITH normalization_denominator=0 at beliefs")
             normalization_denominator = 0.01
         for idx in self.beliefs:
+            print(f"Final before normalize: idx = {idx}, final prob = {np.round(self.beliefs[idx]['prob'], 2)}")
+            print(f"idx= {idx}, {self.beliefs[idx]['reward_dict']}")
             self.beliefs[idx]['prob'] = self.beliefs[idx]['prob'] / normalization_denominator
-            # print(f"idx = {idx}, final prob = {np.round(self.beliefs[idx]['prob'],2)}")
+            print(f"FINAL idx = {idx}, final prob = {np.round(self.beliefs[idx]['prob'], 2)}")
+
+            color='blue'
+            if idx == self.true_human_rew_idx:
+                color = 'red'
+            plt.scatter([idx], [self.beliefs[idx]['prob']], c=color)
+
+        plt.show()
 
             # print(f"belief {self.beliefs[idx]['reward_dict']} likelihood is {self.beliefs[idx]['prob']}")
 
-
+    def hmr_get_all_possible_joint_actions(self):
+        possible_joint_actions = []
+        for r_act in self.hmr_possible_actions:
+            for h_act in self.hmr_possible_actions:
+                joint_action = {'robot': r_act, 'human': h_act}
+                possible_joint_actions.append(joint_action)
+        return possible_joint_actions
 
     def get_all_possible_joint_actions(self):
         possible_joint_actions = []
@@ -741,6 +742,77 @@ class Robot:
         #                                                                       0.0)
         self.transitions, self.rewards, self.state_to_idx, \
         self.idx_to_action, self.idx_to_state, self.action_to_idx = transition_mat, reward_mat, state_to_idx, \
+                                                                    idx_to_action, idx_to_state, action_to_idx
+        return transition_mat, reward_mat, state_to_idx, idx_to_action, idx_to_state, action_to_idx
+
+    def hmr_enumerate_states(self, hmr_starting_objects):
+        self.hmr_reset(list(self.state_to_tuple(hmr_starting_objects)))
+
+        actions = self.hmr_get_all_possible_joint_actions()
+        # create directional graph to represent all states
+        G = nx.DiGraph()
+
+        visited_states = set()
+
+        stack = [copy.deepcopy(self.hmr_state_remaining_objects)]
+
+        while stack:
+            state = stack.pop()
+
+            # convert old state to tuple
+            state_tup = self.state_to_tuple(state)
+
+            # if state has not been visited, add it to the set of visited states
+            if state_tup not in visited_states:
+                visited_states.add(state_tup)
+
+            # get the neighbors of this state by looping through possible actions
+            for idx, action in enumerate(actions):
+
+                next_state, (team_rew, robot_rew, human_rew), done = self.step_given_state(state, action, self.ind_rew)
+
+                new_state_tup = self.state_to_tuple(next_state)
+
+                if new_state_tup not in visited_states:
+                    stack.append(copy.deepcopy(next_state))
+
+                # add edge to graph from current state to new state with weight equal to reward
+                G.add_edge(state_tup, new_state_tup, weight=team_rew, action=(action['robot'], action['human']))
+
+        states = list(G.nodes)
+        # print("NUMBER OF STATES", len(states))
+        idx_to_state = {i: state for i, state in enumerate(states)}
+        state_to_idx = {state: i for i, state in idx_to_state.items()}
+
+        # pdb.set_trace()
+        action_to_idx = {(action['robot'], action['human']): i for i, action in enumerate(actions)}
+        idx_to_action = {i: (action['robot'], action['human']) for i, action in enumerate(actions)}
+
+        # construct transition matrix and reward matrix of shape [# states, # states, # actions] based on graph
+        transition_mat = np.zeros([len(states), len(states), len(actions)])
+        reward_mat = np.zeros([len(states), len(actions)])
+
+        for i in range(len(states)):
+            # get all outgoing edges from current state
+            edges = G.out_edges(states[i], data=True)
+            for edge in edges:
+                # get index of action in action_idx
+                action_idx_i = action_to_idx[edge[2]['action']]
+                # get index of next state in node list
+                next_state_i = states.index(edge[1])
+                # add edge to transition matrix
+                transition_mat[i, next_state_i, action_idx_i] = 1.0
+                reward_mat[i, action_idx_i] = edge[2]['weight']
+
+        # check that for each state and action pair, the sum of the transition probabilities is 1 (or 0 for terminal states)
+        # for i in range(len(states)):
+        #     for j in range(len(actions)):
+        #         print("np.sum(transition_mat[i, :, j])", np.sum(transition_mat[i, :, j]))
+        #         print("np.sum(transition_mat[i, :, j]", np.sum(transition_mat[i, :, j]))
+        # assert np.isclose(np.sum(transition_mat[i, :, j]), 1.0) or np.isclose(np.sum(transition_mat[i, :, j]),
+        #                                                                       0.0)
+        self.hmr_transitions, self.hmr_rewards, self.hmr_state_to_idx, \
+        self.hmr_idx_to_action, self.hmr_idx_to_state, self.hmr_action_to_idx = transition_mat, reward_mat, state_to_idx, \
                                                                     idx_to_action, idx_to_state, action_to_idx
         return transition_mat, reward_mat, state_to_idx, idx_to_action, idx_to_state, action_to_idx
 
@@ -1938,7 +2010,11 @@ class Robot:
                 most_probable_h_reward_idx = candidate_idx
 
         probability_of_hyp = 1
+        print("most_probable_h_reward_idx", most_probable_h_reward_idx)
+
         h_reward_hypothesis = self.beliefs[most_probable_h_reward_idx]['reward_dict']
+        print("MAX PROB H = ", h_reward_hypothesis)
+
 
         for i in range(self.maxiter):
             # print("i=", i)
@@ -2427,8 +2503,9 @@ class Robot:
             pi : array_like
                 The optimal policy. Of size (# states, 1).
         """
-        n_states = self.transitions.shape[0]
-        n_actions = self.transitions.shape[2]
+
+        n_states = self.hmr_transitions.shape[0]
+        n_actions = self.hmr_transitions.shape[2]
 
         # initialize value function
         pi = np.zeros((n_states, 1))
@@ -2444,7 +2521,7 @@ class Robot:
                 # store old value function
                 old_v = vf[s].copy()
 
-                current_state = copy.deepcopy(list(self.idx_to_state[s]))
+                current_state = copy.deepcopy(list(self.hmr_idx_to_state[s]))
 
                 current_state_remaining_objects = {}
                 for obj_tuple in current_state:
@@ -2452,7 +2529,7 @@ class Robot:
                         current_state_remaining_objects[obj_tuple] = 1
                     else:
                         current_state_remaining_objects[obj_tuple] += 1
-                for obj_tuple in self.possible_actions:
+                for obj_tuple in self.hmr_possible_actions:
                     if obj_tuple is not None and obj_tuple not in current_state_remaining_objects:
                         current_state_remaining_objects[obj_tuple] = 0
 
@@ -2464,10 +2541,10 @@ class Robot:
                 else:
                     # compute new Q values
                     #
-                    for action_idx in self.idx_to_action:
+                    for action_idx in self.hmr_idx_to_action:
                         # pdb.set_trace()
                         # check joint action
-                        joint_action = self.idx_to_action[action_idx]
+                        joint_action = self.hmr_idx_to_action[action_idx]
                         r_act = joint_action[0]
                         h_act = joint_action[1]
                         joint_action = {'robot': r_act, 'human': h_act}
@@ -2485,7 +2562,7 @@ class Robot:
                             r_sa = human_rew
 
 
-                        s11 = self.state_to_idx[self.state_to_tuple(next_state)]
+                        s11 = self.hmr_state_to_idx[self.state_to_tuple(next_state)]
                         # action_idx = self.action_to_idx[(r_act, h_action)]
                         Q[s, action_idx] = r_sa + (self.human_gamma * vf[s11])
 
@@ -2505,7 +2582,7 @@ class Robot:
             # store old value function
             old_v = vf[s].copy()
 
-            current_state = copy.deepcopy(list(self.idx_to_state[s]))
+            current_state = copy.deepcopy(list(self.hmr_idx_to_state[s]))
 
             current_state_remaining_objects = {}
             for obj_tuple in current_state:
@@ -2513,7 +2590,7 @@ class Robot:
                     current_state_remaining_objects[obj_tuple] = 1
                 else:
                     current_state_remaining_objects[obj_tuple] += 1
-            for obj_tuple in self.possible_actions:
+            for obj_tuple in self.hmr_possible_actions:
                 if obj_tuple is not None and obj_tuple not in current_state_remaining_objects:
                     current_state_remaining_objects[obj_tuple] = 0
 
@@ -2525,11 +2602,11 @@ class Robot:
             else:
 
                 # compute new Q values
-                for action_idx in self.idx_to_action:
+                for action_idx in self.hmr_idx_to_action:
                     # check joint action
                     # joint_action = self.idx_to_action[action_idx]
                     # joint_action = {'robot': r_act, 'human': h_action}
-                    joint_action = self.idx_to_action[action_idx]
+                    joint_action = self.hmr_idx_to_action[action_idx]
                     r_act = joint_action[0]
                     h_act = joint_action[1]
                     joint_action = {'robot': r_act, 'human': h_act}
@@ -2542,7 +2619,7 @@ class Robot:
                         next_state, (team_rew, robot_rew, human_rew), done = self.human_imagine_step_given_state(
                             current_state_remaining_objects, joint_action, human_rew_dict)
                         r_sa = human_rew
-                    s11 = self.state_to_idx[self.state_to_tuple(next_state)]
+                    s11 = self.hmr_state_to_idx[self.state_to_tuple(next_state)]
                     # action_idx = self.action_to_idx[(r_act, h_action)]
                     Q[s, action_idx] = r_sa + (self.human_gamma * vf[s11])
 
@@ -2558,8 +2635,8 @@ class Robot:
             if self.robot_knows_human_rew is False:
                 # print("Running collective_value_iteration")
                 # self.collective_value_iteration()
-                self.collective_policy_iteration()
-                # self.collective_value_iteration_argmax()
+                # self.collective_policy_iteration()
+                self.collective_value_iteration_argmax()
             else:
                 # print("Running collective_value_iteration_with_true_human_reward")
                 # self.collective_value_iteration()

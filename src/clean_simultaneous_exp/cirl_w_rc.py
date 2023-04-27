@@ -10,6 +10,7 @@ import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
 from robot_model_birl_rew import Robot
+# from robot_model_birl_q_recompute_start_indiv import Robot
 from human_model import Greedy_Human, Collaborative_Human
 # import seaborn as sns
 import matplotlib.cm as cm
@@ -77,20 +78,23 @@ class Simultaneous_Cleanup():
         return False
 
     def resolve_heavy_pickup(self, rh_action):
+        robot_action_successful, human_action_successful = False, False
         team_rew, robot_rew, human_rew = 0, 0, 0
         if rh_action in self.state_remaining_objects and self.state_remaining_objects[rh_action] > 0:
             self.state_remaining_objects[rh_action] -= 1
             # team_rew += 0
             robot_rew += self.robot.ind_rew[rh_action]
             human_rew += self.human.ind_rew[rh_action]
+            robot_action_successful, human_action_successful = True, True
 
         self.total_reward['team'] += team_rew
         self.total_reward['robot'] += robot_rew
         self.total_reward['human'] += human_rew
-        return team_rew, robot_rew, human_rew
+        return team_rew, robot_rew, human_rew, robot_action_successful, human_action_successful
 
 
     def resolve_two_agents_same_item(self, robot_action, human_action):
+        robot_action_successful, human_action_successful = False, False
         (robot_action_color, robot_action_weight) = robot_action
         (human_action_color, human_action_weight) = human_action
         robot_rew, human_rew = 0, 0
@@ -100,7 +104,8 @@ class Simultaneous_Cleanup():
             elif self.state_remaining_objects[robot_action] == 1:
                 self.state_remaining_objects[robot_action] -= 1
 
-                human_rew = self.human.ind_rew[human_action] # Human takes object
+                human_rew = self.human.ind_rew[human_action]  # Human takes object
+                human_action_successful = True
 
                 # Uncomment below if stochastic pickup.
                 # pickup_agent = np.random.choice(['r', 'h'])
@@ -113,15 +118,17 @@ class Simultaneous_Cleanup():
                 self.state_remaining_objects[human_action] -= 1
                 robot_rew += self.robot.ind_rew[robot_action]
                 human_rew += self.human.ind_rew[human_action]
+                robot_action_successful, human_action_successful = True, True
 
         self.total_reward['team'] += 0
         self.total_reward['robot'] += robot_rew
         self.total_reward['human'] += human_rew
 
-        return 0, robot_rew, human_rew
+        return 0, robot_rew, human_rew, robot_action_successful, human_action_successful
 
     def resolve_two_agents_diff_item(self, robot_action, human_action):
 
+        robot_action_successful, human_action_successful = False, False
         robot_rew, human_rew = 0, 0
 
         if robot_action is not None and robot_action in self.state_remaining_objects:
@@ -131,6 +138,7 @@ class Simultaneous_Cleanup():
                 if self.state_remaining_objects[robot_action] > 0:
                     self.state_remaining_objects[robot_action] -= 1
                     robot_rew += self.robot.ind_rew[robot_action]
+                    robot_action_successful = True
 
         if human_action is not None and human_action in self.state_remaining_objects:
             (human_action_color, human_action_weight) = human_action
@@ -138,11 +146,12 @@ class Simultaneous_Cleanup():
                 if self.state_remaining_objects[human_action] > 0:
                     self.state_remaining_objects[human_action] -= 1
                     human_rew += self.human.ind_rew[human_action]
+                    human_action_successful = True
 
         self.total_reward['team'] += 0
         self.total_reward['robot'] += robot_rew
         self.total_reward['human'] += human_rew
-        return 0, robot_rew, human_rew
+        return 0, robot_rew, human_rew, robot_action_successful, human_action_successful
 
 
     def step(self, joint_action):
@@ -150,25 +159,29 @@ class Simultaneous_Cleanup():
         robot_action = joint_action['robot']
 
         human_action = joint_action['human']
+
+        robot_action_successful = False
+        human_action_successful = False
         # (human_action_color, human_action_weight) = human_action
         # total_reward = 0
         # total_robot_only = 0
         # total_human_only = 0
 
-
-
         if robot_action == human_action and robot_action is not None:
             # collaborative pick up object
             (robot_action_color, robot_action_weight) = robot_action
             if robot_action_weight == 1:
-                team_rew, robot_rew, human_rew = self.resolve_heavy_pickup(robot_action)
+                team_rew, robot_rew, human_rew, robot_action_successful, human_action_successful = self.resolve_heavy_pickup(
+                    robot_action)
 
             # single pick up object
             else:
-                team_rew, robot_rew, human_rew = self.resolve_two_agents_same_item(robot_action, human_action)
+                team_rew, robot_rew, human_rew, robot_action_successful, human_action_successful = self.resolve_two_agents_same_item(
+                    robot_action, human_action)
 
         else:
-            team_rew, robot_rew, human_rew = self.resolve_two_agents_diff_item(robot_action, human_action)
+            team_rew, robot_rew, human_rew, robot_action_successful, human_action_successful = self.resolve_two_agents_diff_item(
+                robot_action, human_action)
 
         team_rew = team_rew - 2
 
@@ -179,7 +192,7 @@ class Simultaneous_Cleanup():
 
         done = self.is_done()
         # total_reward = team_rew + robot_rew + human_rew
-        return (team_rew, robot_rew, human_rew), done
+        return (team_rew, robot_rew, human_rew), done, (robot_action_successful, human_action_successful)
 
 
     def step_given_state(self, input_state, joint_action):
@@ -524,7 +537,7 @@ class Simultaneous_Cleanup():
 
             action = {'robot': robot_action, 'human': human_action}
 
-            (team_rew, robot_rew, human_rew), done = self.step(action)
+            (team_rew, robot_rew, human_rew), done, (_,_) = self.step(action)
             human_only_reward += human_rew
             robot_only_reward += robot_rew
             # print(f"current_state = ", current_state)
@@ -603,6 +616,7 @@ class Simultaneous_Cleanup():
                 current_state = copy.deepcopy(self.state_remaining_objects)
 
                 robot_action = self.robot.act(current_state)
+                # print("current_state for human acting", current_state)
                 human_action = self.human.act(current_state)
 
                 max_key = max(self.robot.beliefs, key=lambda k: self.robot.beliefs[k]['prob'])
@@ -614,7 +628,7 @@ class Simultaneous_Cleanup():
                 action = {'robot': robot_action, 'human': human_action}
                 # print(f"iter {iters}: objects left {sum(self.state_remaining_objects.values())} --> action {action}")
 
-                (team_rew, robot_rew, human_rew), done = self.step(action)
+                (team_rew, robot_rew, human_rew), done, (robot_action_successful, human_action_successful) = self.step(action)
 
                 human_rewards_over_round.append(human_rew)
                 robot_rewards_over_round.append(robot_rew)
@@ -624,7 +638,7 @@ class Simultaneous_Cleanup():
                 # pdb.set_trace()
                 if plot:
                     if human_action is not None:
-                        if human_rew == 0:
+                        if human_action_successful is False:
                             plt.scatter([iters - 1], [human_y], c=COLOR_TO_TEXT[human_action[0]],
                                         s=np.power(3,human_action[1] + 4), alpha=0.2)
                         else:
@@ -634,7 +648,7 @@ class Simultaneous_Cleanup():
                         plt.scatter([iters - 1], [human_y], c='k', s=2)
 
                     if robot_action is not None:
-                        if robot_rew == 0:
+                        if robot_action_successful is False:
                             plt.scatter([iters - 1], [robot_y], c=COLOR_TO_TEXT[robot_action[0]],
                                         s=np.power(3,robot_action[1] + 4), alpha=0.2)
                         else:
@@ -786,14 +800,22 @@ class Simultaneous_Cleanup():
                 second_prob_idx = idx
 
         max_prob_is_correct = False
-        if max_prob_idx == self.robot.true_human_rew_idx:
+        if self.robot.beliefs[max_prob_idx]['prob'] == self.robot.beliefs[self.robot.true_human_rew_idx]['prob']:
             max_prob_is_correct = True
 
         max_prob_is_close = False
-        if max_prob_idx == self.robot.true_human_rew_idx or second_prob_idx == self.robot.true_human_rew_idx or abs(
+        if self.robot.beliefs[max_prob_idx]['prob'] == self.robot.beliefs[self.robot.true_human_rew_idx]['prob'] or second_prob_idx == self.robot.true_human_rew_idx or abs(
                 max_prob - self.robot.beliefs[self.robot.true_human_rew_idx]['prob']) <= 0.2:
             max_prob_is_close = True
-        return total_reward, human_only_reward, robot_only_reward, multiround_belief_history, reward_for_all_rounds, max_prob_is_correct, max_prob_is_close
+
+        num_equal_to_max = 0
+        for idx in self.robot.beliefs:
+            if self.robot.beliefs[idx]['prob'] == max_prob:
+                num_equal_to_max += 1
+
+
+
+        return total_reward, human_only_reward, robot_only_reward, multiround_belief_history, reward_for_all_rounds, max_prob_is_correct, max_prob_is_close, num_equal_to_max
 
 
 
@@ -869,7 +891,7 @@ def plot_multiround_belief_history(multiround_belief_history, all_objects):
         os.remove(folder + file_name)
 
 
-def run_k_rounds(exp_num, task_reward, h_alpha=0.0):
+def run_k_rounds(exp_num, task_reward, h_alpha=0.0, update_threshold=0.9):
     print("exp_num = ", exp_num)
     # np.random.seed(1)
 
@@ -936,9 +958,9 @@ def run_k_rounds(exp_num, task_reward, h_alpha=0.0):
             starting_objects.append(object)
     # starting_objects = [(BLUE, 0), (RED, 0), (BLUE, 1), (RED, 1),(BLUE, 0), (RED, 0), (BLUE, 1), (RED, 1)]
     #
-    # print("human_rew", human_rew)
-    # print("robot_rew", robot_rew)
-    # print("starting_objects", starting_objects)
+    print("human_rew", human_rew)
+    print("robot_rew", robot_rew)
+    print("starting_objects", starting_objects)
 
 
     robot = Robot(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=True, permutes=permutes, vi_type='cvi', is_collaborative_human=True)
@@ -954,11 +976,11 @@ def run_k_rounds(exp_num, task_reward, h_alpha=0.0):
     greedy_team_rew, greedy_human_rew, greedy_robot_rew = env.rollout_full_game_two_agents()
     print("Fully 2 greedy final_team_rew = ", greedy_team_rew)
 
-    robot = Robot(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=False, permutes=permutes, vi_type='cvi', is_collaborative_human=True)
+    robot = Robot(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=False, permutes=permutes, vi_type='cvi', is_collaborative_human=True, update_threshold=update_threshold)
     human = Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha)
     robot.setup_value_iteration()
     env = Simultaneous_Cleanup(robot, human, starting_objects)
-    cvi_rew, cvi_human_rew, cvi_robot_rew, multiround_belief_history, reward_for_all_rounds, max_prob_is_correct, max_prob_is_close = env.rollout_multiround_game_two_agents(num_rounds=6, plot=False)
+    cvi_rew, cvi_human_rew, cvi_robot_rew, multiround_belief_history, reward_for_all_rounds, max_prob_is_correct, max_prob_is_close, num_equal_to_max = env.rollout_multiround_game_two_agents(num_rounds=4, plot=True)
     print("CVI final_team_rew = ", cvi_rew)
 
     robot = Robot(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=True, permutes=permutes, vi_type='stdvi', is_collaborative_human=True)
@@ -1012,7 +1034,7 @@ def run_k_rounds(exp_num, task_reward, h_alpha=0.0):
 
     print("done with exp_num = ", exp_num)
     return cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
-           cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close
+           cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal_to_max
 
 
 def run_experiment():
@@ -1028,7 +1050,7 @@ def run_experiment():
     cvi_robotrew_percents = []
     stdvi_robotrew_percents = []
 
-    num_exps = 10
+    num_exps = 100
 
     n_altruism = 0
     n_total = 0
@@ -1038,6 +1060,7 @@ def run_experiment():
 
     times_max_prob_is_correct = 0
     times_max_prob_is_close = 0
+    num_equal_to_max = []
 
     percent_change = {}
     for percent in np.arange(-1.0, 1.01, step=0.01):
@@ -1047,7 +1070,9 @@ def run_experiment():
         k_round_results = pool.starmap(run_k_rounds, [(exp_num, task_reward) for exp_num in range(num_exps)])
         for result in k_round_results:
             cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
-            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close = result
+            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal = result
+
+            num_equal_to_max.append(num_equal)
 
             if max_prob_is_correct is True:
                 times_max_prob_is_correct += 1
@@ -1211,6 +1236,8 @@ def run_experiment():
     print("times_max_prob_is_close = ", times_max_prob_is_close)
     print("percent max_prob_is_close = ", times_max_prob_is_close / num_exps)
 
+    print(f"num_equal_to_max = {np.mean(num_equal_to_max)}, std: {np.std(num_equal_to_max)}")
+
     print("CVI Mean Percent of Opt reward = ", np.round(np.mean(cvi_percents), 3))
     print("CVI Std Percent of Opt reward = ", np.round(np.std(cvi_percents), 3))
 
@@ -1237,6 +1264,7 @@ def run_experiment_without_multiprocess():
 
     times_max_prob_is_correct = 0
     times_max_prob_is_close = 0
+    num_equal_to_max = []
 
     percent_change = {}
     for percent in np.arange(-1.0, 1.01, step=0.01):
@@ -1246,7 +1274,8 @@ def run_experiment_without_multiprocess():
         exp_num_results = run_k_rounds(exp_num, task_reward)
 
         cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
-        cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close = exp_num_results
+        cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal = exp_num_results
+        num_equal_to_max.append(num_equal)
 
         if max_prob_is_correct is True:
             times_max_prob_is_correct += 1
@@ -1410,13 +1439,115 @@ def run_experiment_without_multiprocess():
     print("times_max_prob_is_close = ", times_max_prob_is_close)
     print("percent max_prob_is_close = ", times_max_prob_is_close / num_exps)
 
+    print("num_equal_to_max = ", np.mean(num_equal_to_max))
+
     print("CVI Mean Percent of Opt reward = ", np.round(np.mean(cvi_percents), 3))
     print("CVI Std Percent of Opt reward = ", np.round(np.std(cvi_percents), 3))
+
+def run_experiment_for_update_threshold(update_threshold):
+
+    task_reward = [1, 1, 1, 1]
+
+    cvi_percents = []
+    stdvi_percents = []
+
+    cvi_humanrew_percents = []
+    stdvi_humanrew_percents = []
+
+    cvi_robotrew_percents = []
+    stdvi_robotrew_percents = []
+
+    num_exps = 1
+
+    n_altruism = 0
+    n_total = 0
+    n_greedy = 0
+
+    round_to_percent_rewards = {i:[] for i in range(6)}
+
+    times_max_prob_is_correct = 0
+    times_max_prob_is_close = 0
+
+    percent_change = {}
+    for percent in np.arange(-1.0, 1.01, step=0.01):
+        percent_change[np.round(percent, 2)] = 0
+
+    with Pool(processes=100) as pool:
+        k_round_results = pool.starmap(run_k_rounds, [(exp_num, task_reward, 0.0, update_threshold) for exp_num in range(num_exps)])
+        for result in k_round_results:
+            cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
+            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close = result
+
+            if max_prob_is_correct is True:
+                times_max_prob_is_correct += 1
+
+            if max_prob_is_close is True:
+                times_max_prob_is_close += 1
+
+
+            if altruism_case == 'opt':
+                n_greedy += 1
+            if altruism_case == 'subopt':
+                n_altruism += 1
+            n_total += 1
+
+            for j in range(len(percent_opt_each_round)):
+                round_to_percent_rewards[j].append(percent_opt_each_round[j])
+
+            # if altruism_case == 'opt':
+            #     continue
+
+            cvi_percents.append(cvi_percent_of_opt_team)
+            stdvi_percents.append(stdvi_percent_of_opt_team)
+
+            cvi_humanrew_percents.append(cvi_percent_of_opt_human)
+            stdvi_humanrew_percents.append(stdvi_percent_of_opt_human)
+
+            cvi_robotrew_percents.append(cvi_percent_of_opt_robot)
+            stdvi_robotrew_percents.append(stdvi_percent_of_opt_robot)
+
+            diff = cvi_percent_of_opt_team - stdvi_percent_of_opt_team
+            diff = np.round(diff, 2)
+            # print("percent_change = ", percent_change)
+            if diff in percent_change:
+                percent_change[diff] += 1
+
+
+    return np.round(np.mean(cvi_percents), 3), times_max_prob_is_correct/num_exps, times_max_prob_is_close / num_exps
 
 
 if __name__ == "__main__":
     np.random.seed(0)
-    run_experiment()
-    # run_experiment_without_multiprocess()
-    # run_experiment_h_alpha()
-
+    # run_experiment()
+    run_experiment_without_multiprocess()
+    # means = []
+    # correct = []
+    # close = []
+    # updates = [0.6, 0.7, 0.8, 0.9, 1.0]
+    # for update_threshold in updates:
+    #     mean_percent_rew_of_opt, percent_correct, percent_close = run_experiment_for_update_threshold(update_threshold)
+    #     means.append(mean_percent_rew_of_opt)
+    #     correct.append(percent_correct)
+    #     close.append(percent_close)
+    # # run_experiment_h_alpha()
+    #
+    # plt.plot(updates, means)
+    # plt.xlabel("Threshold for Probabilities")
+    # plt.ylabel("Avg Percent of Optimal Reward")
+    # plt.title("Reward by Threshold")
+    # plt.savefig("images/cirl_w_rc_threshold.png")
+    # plt.show()
+    #
+    # plt.plot(updates, correct)
+    # plt.xlabel("Threshold for Probabilities")
+    # plt.ylabel("Percent Correct")
+    # plt.title("Reward by Threshold")
+    # plt.savefig("images/cirl_w_rc_correct.png")
+    # plt.show()
+    #
+    # plt.plot(updates, close)
+    # plt.xlabel("Threshold for Probabilities")
+    # plt.ylabel("Percent Close")
+    # plt.title("Reward by Threshold")
+    # plt.savefig("images/cirl_w_rc_close.png")
+    # plt.show()
