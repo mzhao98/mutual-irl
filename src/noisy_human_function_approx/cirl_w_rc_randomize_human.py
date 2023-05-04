@@ -11,7 +11,7 @@ from scipy import stats
 from multiprocessing import Pool, freeze_support
 from robot_model_birl_rew import Robot
 # from robot_model_birl_q_recompute_start_indiv import Robot
-from human_model import Greedy_Human, Collaborative_Human
+from human_model import Greedy_Human, Collaborative_Human, Suboptimal_Collaborative_Human
 # import seaborn as sns
 import matplotlib.cm as cm
 import matplotlib.animation as animation
@@ -622,6 +622,7 @@ class Simultaneous_Cleanup():
                 robot_action = self.robot.act(current_state)
                 # print("current_state for human acting", current_state)
                 human_action = self.human.act(current_state)
+                self.robot.add_to_lstm_training_data(current_state, robot_action, human_action)
 
                 max_key = max(self.robot.beliefs, key=lambda k: self.robot.beliefs[k]['prob'])
                 # print()
@@ -817,9 +818,9 @@ class Simultaneous_Cleanup():
             if self.robot.beliefs[idx]['prob'] == max_prob:
                 num_equal_to_max += 1
 
+        lstm_accuracies_list = self.robot.lstm_accuracies
 
-
-        return total_reward, human_only_reward, robot_only_reward, multiround_belief_history, reward_for_all_rounds, max_prob_is_correct, max_prob_is_close, num_equal_to_max
+        return total_reward, human_only_reward, robot_only_reward, multiround_belief_history, reward_for_all_rounds, max_prob_is_correct, max_prob_is_close, num_equal_to_max, lstm_accuracies_list
 
 
 
@@ -947,10 +948,12 @@ def run_k_rounds(exp_num, task_reward, h_alpha=0.0, update_threshold=0.9):
 
     permutes = list(itertools.permutations(list(robot_rew.values())))
     permutes = list(set(permutes))
-    # print("permutes",permutes)
     human_rew_values = list(permutes[np.random.choice(np.arange(len(permutes)))])
     object_keys = list(robot_rew.keys())
     human_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
+
+    random_h_alpha = np.random.uniform(0.5, 1.0)
+    random_h_deg_collab = np.random.uniform(0.1, 1.0)
 
     # all_objects = [(BLUE, 0), (YELLOW, 0), (GREEN, 0), (RED, 0), (BLUE, 1),(GREEN, 1), (RED, 1), (YELLOW, 1)]
     # all_objects = [(BLUE, 0),  (RED, 0), (BLUE, 1), (RED, 1), (YELLOW, 1)]
@@ -973,27 +976,27 @@ def run_k_rounds(exp_num, task_reward, h_alpha=0.0, update_threshold=0.9):
 
 
     robot = Robot(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=True, permutes=permutes, vi_type='cvi', is_collaborative_human=True)
-    human = Collaborative_Human(human_rew, robot_rew, starting_objects, 0)
+    human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha, h_deg_collab=random_h_deg_collab)
     env = Simultaneous_Cleanup(robot, human, starting_objects)
     optimal_rew, best_human_rew, best_robot_rew = env.compute_optimal_performance()
     print("Optimal Reward = ", optimal_rew)
 
     # Test 2 greedy
     robot = Greedy_Human(robot_rew, human_rew, starting_objects, 0)
-    human = Collaborative_Human(human_rew, robot_rew, starting_objects, 0)
+    human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha, h_deg_collab=random_h_deg_collab)
     env = Simultaneous_Cleanup(robot, human, starting_objects)
     greedy_team_rew, greedy_human_rew, greedy_robot_rew = env.rollout_full_game_two_agents()
     print("Fully 2 greedy final_team_rew = ", greedy_team_rew)
 
     robot = Robot(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=False, permutes=permutes, vi_type='cvi', is_collaborative_human=True, update_threshold=update_threshold)
-    human = Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha)
-    robot.setup_value_iteration(h_alpha)
+    human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha, h_deg_collab=random_h_deg_collab)
+    robot.setup_value_iteration()
     env = Simultaneous_Cleanup(robot, human, starting_objects)
-    cvi_rew, cvi_human_rew, cvi_robot_rew, multiround_belief_history, reward_for_all_rounds, max_prob_is_correct, max_prob_is_close, num_equal_to_max = env.rollout_multiround_game_two_agents(num_rounds=4, plot=False)
+    cvi_rew, cvi_human_rew, cvi_robot_rew, multiround_belief_history, reward_for_all_rounds, max_prob_is_correct, max_prob_is_close, num_equal_to_max, lstm_accuracies_list = env.rollout_multiround_game_two_agents(num_rounds=6, plot=False)
     print("CVI final_team_rew = ", cvi_rew)
 
     robot = Robot(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=True, permutes=permutes, vi_type='stdvi', is_collaborative_human=True)
-    human = Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha)
+    human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha, h_deg_collab=random_h_deg_collab)
     robot.setup_value_iteration()
     env = Simultaneous_Cleanup(robot, human, starting_objects)
     stdvi_rew, stdvi_human_rew, stdvi_robot_rew = env.rollout_full_game_two_agents()
@@ -1043,7 +1046,7 @@ def run_k_rounds(exp_num, task_reward, h_alpha=0.0, update_threshold=0.9):
 
     print("done with exp_num = ", exp_num)
     return cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
-           cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal_to_max
+           cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal_to_max, lstm_accuracies_list
 
 
 def run_experiment():
@@ -1059,7 +1062,7 @@ def run_experiment():
     cvi_robotrew_percents = []
     stdvi_robotrew_percents = []
 
-    num_exps = 100
+    num_exps = 15
 
     n_altruism = 0
     n_total = 0
@@ -1075,11 +1078,18 @@ def run_experiment():
     for percent in np.arange(-1.0, 1.01, step=0.01):
         percent_change[np.round(percent, 2)] = 0
 
-    with Pool(processes=100) as pool:
+    timestep_to_accuracy_list = {}
+
+    with Pool(processes=10) as pool:
         k_round_results = pool.starmap(run_k_rounds, [(exp_num, task_reward) for exp_num in range(num_exps)])
         for result in k_round_results:
             cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
-            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal = result
+            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal, lstm_accuracies_list = result
+
+            for timestep in range(len(lstm_accuracies_list)):
+                if timestep not in timestep_to_accuracy_list:
+                    timestep_to_accuracy_list[timestep] = []
+                timestep_to_accuracy_list[timestep].append(lstm_accuracies_list[timestep])
 
             num_equal_to_max.append(num_equal)
 
@@ -1236,6 +1246,17 @@ def run_experiment():
 
     plt.legend()
     plt.savefig(f"images/cirl_w_rc_{num_exps}_by_round_Std.png")
+    plt.show()
+
+    X = [t for t in timestep_to_accuracy_list]
+    Y = np.array([np.mean(timestep_to_accuracy_list[t]) for t in timestep_to_accuracy_list])
+    Ystd = np.array([np.std(timestep_to_accuracy_list[t]) for t in timestep_to_accuracy_list])
+    plt.plot(X, Y, 'k-')
+    plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#FFD580', facecolor='#FFD580')
+    plt.xlabel("Timestep")
+    plt.ylabel("Avg Prediction Accuracy")
+    plt.title("LSTM Accuracy vs Timestep")
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_by_round_lstm_accuracy.png")
     plt.show()
 
     print()
@@ -1466,7 +1487,7 @@ def run_experiment_for_update_threshold(update_threshold):
     cvi_robotrew_percents = []
     stdvi_robotrew_percents = []
 
-    num_exps = 10
+    num_exps = 5
 
     n_altruism = 0
     n_total = 0
@@ -1689,7 +1710,7 @@ def evaluate_human_alphas():
     plt.xlabel("Percent of Time Human Suboptimal (Alpha)")
     plt.ylabel("Num Equal to Max")
     plt.title("Num Equal to Max by Alpha")
-    plt.savefig("images/cirl_w_rc_halpha_num_max_helim.png")
+    plt.savefig("images/cirl_w_rc_halpha_num_max_hpmfs.png")
     plt.show()
 
     X = [i for i in h_alpha_list]
@@ -1717,9 +1738,214 @@ def evaluate_human_alphas():
     plt.savefig("images/cirl_w_rc_halpha_close_hpmf.png")
     plt.show()
 
+
+def run_experiment_random_human_without_multiprocess():
+
+    task_reward = [1, 1, 1, 1]
+
+    cvi_percents = []
+    stdvi_percents = []
+
+    cvi_humanrew_percents = []
+    stdvi_humanrew_percents = []
+
+    cvi_robotrew_percents = []
+    stdvi_robotrew_percents = []
+
+    num_exps = 1
+
+    n_altruism = 0
+    n_total = 0
+    n_greedy = 0
+
+    round_to_percent_rewards = {i:[] for i in range(6)}
+
+    times_max_prob_is_correct = 0
+    times_max_prob_is_close = 0
+    num_equal_to_max = []
+
+    percent_change = {}
+    for percent in np.arange(-1.0, 1.01, step=0.01):
+        percent_change[np.round(percent, 2)] = 0
+
+    for exp_num in range(num_exps):
+        exp_num_results = run_k_rounds(exp_num, task_reward)
+
+        cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
+        cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal = exp_num_results
+        num_equal_to_max.append(num_equal)
+
+        if max_prob_is_correct is True:
+            times_max_prob_is_correct += 1
+
+        if max_prob_is_close is True:
+            times_max_prob_is_close += 1
+
+
+        if altruism_case == 'opt':
+            n_greedy += 1
+        if altruism_case == 'subopt':
+            n_altruism += 1
+        n_total += 1
+
+        for j in range(len(percent_opt_each_round)):
+            round_to_percent_rewards[j].append(percent_opt_each_round[j])
+
+        # if altruism_case == 'opt':
+        #     continue
+
+        cvi_percents.append(cvi_percent_of_opt_team)
+        stdvi_percents.append(stdvi_percent_of_opt_team)
+
+        cvi_humanrew_percents.append(cvi_percent_of_opt_human)
+        stdvi_humanrew_percents.append(stdvi_percent_of_opt_human)
+
+        cvi_robotrew_percents.append(cvi_percent_of_opt_robot)
+        stdvi_robotrew_percents.append(stdvi_percent_of_opt_robot)
+
+        diff = cvi_percent_of_opt_team - stdvi_percent_of_opt_team
+        diff = np.round(diff, 2)
+        # print("percent_change = ", percent_change)
+        if diff in percent_change:
+            percent_change[diff] += 1
+
+    teamrew_means = [np.round(np.mean(cvi_percents), 2), np.round(np.mean(stdvi_percents), 2)]
+    teamrew_stds = [np.round(np.std(cvi_percents), 2), np.round(np.std(stdvi_percents), 2)]
+
+    # humanrew_means = [np.round(np.mean(cvi_humanrew_percents), 2), np.round(np.mean(stdvi_humanrew_percents), 2)]
+    # humanrew_stds = [np.round(np.std(cvi_humanrew_percents), 2), np.round(np.std(stdvi_humanrew_percents), 2)]
+    #
+    # robotrew_means = [np.round(np.mean(cvi_robotrew_percents), 2), np.round(np.mean(stdvi_robotrew_percents), 2)]
+    # robotrew_stds = [np.round(np.std(cvi_robotrew_percents), 2), np.round(np.std(stdvi_robotrew_percents), 2)]
+
+    print("team rew stat results: ",
+          stats.ttest_ind([elem * 100 for elem in cvi_percents], [elem * 100 for elem in stdvi_percents]))
+    # print("human rew stat results: ",
+    #       stats.ttest_ind([elem * 100 for elem in cvi_humanrew_percents], [elem * 100 for elem in stdvi_humanrew_percents]))
+    # print("robot rew stat results: ",
+    #       stats.ttest_ind([elem * 100 for elem in cvi_robotrew_percents],
+    #                       [elem * 100 for elem in cvi_robotrew_percents]))
+
+    # print("n_altruism = ", n_altruism)
+    # print("n_greedy = ", n_greedy)
+    # print("n_total = ", n_total)
+
+    X = [d for d in percent_change]
+    sum_Y = sum([percent_change[d] for d in percent_change])
+    Y = [percent_change[d]/sum_Y for d in percent_change]
+
+    # Compute the CDF
+    CY = np.cumsum(Y)
+
+    # Plot both
+    # fig, ax = plt.subplots(figsize=(5, 5))
+    plt.title('CIRL', fontsize=16)
+    plt.plot(X, Y, label='Diff PDF')
+    plt.plot(X, CY, 'r--', label='Diff CDF')
+    plt.xlabel("% of Opt CVI - % of Opt StdVI")
+
+    plt.legend()
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_cdf.png")
+    plt.show()
+    plt.close()
+
+    data = list([cvi_percents, stdvi_percents])
+    fig, ax = plt.subplots(figsize=(5, 5))
+    # build a violin plot
+    ax.violinplot(data, showmeans=False, showmedians=True)
+    # add title and axis labels
+    ax.set_title('CIRL w RC', fontsize=16)
+    ax.set_xlabel('Robot Type', fontsize=14)
+    ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
+    # add x-tick labels
+    xticklabels = ['CVI robot', 'StdVI robot']
+    ax.set_xticks([1, 2])
+    ax.set_xticklabels(xticklabels)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    # add horizontal grid lines
+    ax.yaxis.grid(True)
+    # show the plot
+    fig.tight_layout()
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_violin.png")
+    plt.show()
+    plt.close()
+
+
+
+
+    # collab_means = [np.round(np.mean(cvi_percents[1]), 2), np.round(np.mean(stdvi_percents[1]), 2)]
+    # collab_stds = [np.round(np.std(cvi_percents[1]), 2), np.round(np.std(stdvi_percents[1]), 2)]
+
+    ind = np.arange(len(teamrew_means))  # the x locations for the groups
+    width = 0.2  # the width of the bars
+
+    fig, ax = plt.subplots(figsize=(5, 5))
+    rects1 = ax.bar(ind - width, teamrew_means, width, yerr=teamrew_stds,
+                    label='Team Reward', capsize=10)
+    # rects2 = ax.bar(ind, humanrew_means, width, yerr=humanrew_stds,
+    #                 label='Human Reward', capsize=10)
+    # rects3 = ax.bar(ind + width, robotrew_means, width, yerr=robotrew_stds,
+    #                 label='Robot Reward', capsize=10)
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+    ax.set_xlabel('Robot Type', fontsize=14)
+    ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
+    # ax.set_ylim(-0.00, 1.5)
+
+    plt.yticks([0.0,0.2, 0.4, 0.6, 0.8, 1.0], [0.0,0.2, 0.4, 0.6, 0.8, 1.0], fontsize=14)
+    # plt.xticks([])
+
+    ax.set_title('CIRL', fontsize=16)
+    ax.set_xticks(ind, fontsize=14)
+    ax.set_xticklabels(('CVI robot', 'StdVI robot'), fontsize=13)
+    ax.legend(fontsize=13)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    # ax.spines['bottom'].set_visible(False)
+    # ax.spines['left'].set_visible(False)
+
+    autolabel(ax, rects1, "left")
+    # autolabel(ax, rects2, "right")
+    # autolabel(ax, rects3, "right")
+
+    fig.tight_layout()
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_bar.png")
+    plt.show()
+    plt.close()
+
+    X = [i for i in np.arange(6)]
+    Y = np.array([np.mean(round_to_percent_rewards[i]) for i in round_to_percent_rewards])
+    Ystd = np.array([np.std(round_to_percent_rewards[i]) for i in round_to_percent_rewards])
+    plt.title('Interactive IRL w RC', fontsize=16)
+    plt.plot(X, Y, 'k-')
+    # plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#1B2ACC', facecolor='#1B2ACC')
+    plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#FFD580', facecolor='#FFD580')
+    plt.ylabel("Percent of Optimal")
+    plt.xlabel("Episode")
+
+    plt.legend()
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_by_round_Std.png")
+    plt.show()
+
+    print()
+    print("times_max_prob_is_correct = ", times_max_prob_is_correct)
+    print("percent max_prob_is_correct = ", times_max_prob_is_correct/num_exps)
+
+    print("times_max_prob_is_close = ", times_max_prob_is_close)
+    print("percent max_prob_is_close = ", times_max_prob_is_close / num_exps)
+
+    print("num_equal_to_max = ", np.mean(num_equal_to_max))
+
+    print("CVI Mean Percent of Opt reward = ", np.round(np.mean(cvi_percents), 3))
+    print("CVI Std Percent of Opt reward = ", np.round(np.std(cvi_percents), 3))
+
+
 if __name__ == "__main__":
-    # np.random.seed(0)
-    # run_experiment()
-    # run_experiment_without_multiprocess()
-    evaluate_thresholds()
+    np.random.seed(0)
+    run_experiment()
+    # run_experiment_random_human_without_multiprocess()
+    # evaluate_thresholds()
     # evaluate_human_alphas()
