@@ -341,6 +341,8 @@ class Suboptimal_Collaborative_Human:
             team_rew, r_rew, h_rew = self.step_given_state(state, (candidate_r_act, candidate_h_act))
             # print("(candidate_r_act, candidate_h_act)", (candidate_r_act, candidate_h_act))
             candidate_rew = team_rew + ((self.h_deg_collab) * r_rew) + ((1-self.h_deg_collab) * h_rew)
+            if self.h_deg_collab == 0.5:
+                candidate_rew = team_rew + (r_rew) + (h_rew)
             # print("candidate_rew", candidate_rew)
             if candidate_h_act is not None:
                 # if state[candidate_h_act] > 0

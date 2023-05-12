@@ -5,7 +5,7 @@ import operator
 import copy
 import networkx as nx
 import random
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
@@ -2935,6 +2935,35 @@ class Robot:
         # print("action", action)
 
         r_action = action[0]
+
+        human_action_to_prob = {}
+        for h_reward_idx in self.beliefs:
+            # print(f"h_reward_idx = {h_reward_idx} of total # beliefs {len(self.beliefs)}")
+            h_reward_hypothesis = self.beliefs[h_reward_idx]['reward_dict']
+            probability_of_hyp = self.beliefs[h_reward_idx]['prob']
+
+            possible_human_action_to_prob = self.get_human_action_under_hypothesis(current_state, h_reward_hypothesis)
+
+            for h_act in possible_human_action_to_prob:
+                h_prob = possible_human_action_to_prob[h_act]
+                if h_act not in human_action_to_prob:
+                    human_action_to_prob[h_act] = 0
+
+                human_action_to_prob[h_act] += (probability_of_hyp * h_prob)
+
+        single_action_distribution = {}
+        for i in range(len(action_distribution)):
+            q_value_for_joint = action_distribution[i]
+            j_action = self.idx_to_action[i]
+            single_r_action = j_action[0]
+            single_h_action = j_action[1]
+            prob_human_act = human_action_to_prob[single_h_action]
+            if single_r_action not in single_action_distribution:
+                single_action_distribution[single_r_action] = 0
+            single_action_distribution[single_r_action] += (q_value_for_joint * prob_human_act)
+
+        r_action = max(single_action_distribution.items(), key=operator.itemgetter(1))[0]
+
         return r_action
 
 

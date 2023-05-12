@@ -10,7 +10,9 @@ import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
 from robot_model_birl_rew import Robot
-# from robot_model_birl_q_recompute_start_indiv import Robot
+# from robot_model_fixed_lstm import Robot
+# from robot_model_birl_prob_plan_out import Robot
+# from robot_model_lstm_rew import Robot
 from human_model import Greedy_Human, Collaborative_Human, Suboptimal_Collaborative_Human
 # import seaborn as sns
 import matplotlib.cm as cm
@@ -22,6 +24,8 @@ import sys
 import os
 import subprocess
 import glob
+
+ROBOT_TYPE = 'robot_model_birl_rew'
 
 BLUE = 0
 GREEN = 1
@@ -478,6 +482,7 @@ class Simultaneous_Cleanup():
         human_greedy_alt = []
         robot_greedy_alt = []
         iters = 0
+
         while not done:
             iters += 1
         # for i in range(10):
@@ -528,11 +533,14 @@ class Simultaneous_Cleanup():
         robot_only_reward = 0
 
         iters = 0
+        is_start = True
+
         while not done:
             iters += 1
             current_state = copy.deepcopy(self.state_remaining_objects)
 
             robot_action = self.robot.act(current_state)
+            # is_start = False
             human_action = self.human.act(current_state)
 
             action = {'robot': robot_action, 'human': human_action}
@@ -614,15 +622,22 @@ class Simultaneous_Cleanup():
             team_rewards_over_round = []
             total_rewards_over_round = []
 
+            is_start = True
 
             while not done:
                 iters += 1
                 current_state = copy.deepcopy(self.state_remaining_objects)
 
-                robot_action = self.robot.act(current_state)
+                robot_action = self.robot.act(current_state, is_start=is_start)
+                is_start = False
                 # print("current_state for human acting", current_state)
                 human_action = self.human.act(current_state)
-                self.robot.add_to_lstm_training_data(current_state, robot_action, human_action)
+
+                if hasattr(self.robot, 'human_lstm'):
+                    print("LSTM ROBOT")
+                    self.robot.add_to_lstm_training_data(current_state, robot_action, human_action)
+                else:
+                    print("NOT LSTM ROBOT")
 
                 max_key = max(self.robot.beliefs, key=lambda k: self.robot.beliefs[k]['prob'])
                 # print()
@@ -818,7 +833,10 @@ class Simultaneous_Cleanup():
             if self.robot.beliefs[idx]['prob'] == max_prob:
                 num_equal_to_max += 1
 
-        lstm_accuracies_list = self.robot.lstm_accuracies
+        if hasattr(self.robot, 'lstm_accuracies'):
+            lstm_accuracies_list = self.robot.lstm_accuracies
+        else:
+            lstm_accuracies_list = None
 
         return total_reward, human_only_reward, robot_only_reward, multiround_belief_history, reward_for_all_rounds, max_prob_is_correct, max_prob_is_close, num_equal_to_max, lstm_accuracies_list
 
@@ -954,6 +972,8 @@ def run_k_rounds(exp_num, task_reward, h_alpha=0.0, update_threshold=0.9):
 
     random_h_alpha = np.random.uniform(0.5, 1.0)
     random_h_deg_collab = np.random.uniform(0.1, 1.0)
+    # random_h_alpha = h_alpha
+    # random_h_deg_collab = 0.5
 
     # all_objects = [(BLUE, 0), (YELLOW, 0), (GREEN, 0), (RED, 0), (BLUE, 1),(GREEN, 1), (RED, 1), (YELLOW, 1)]
     # all_objects = [(BLUE, 0),  (RED, 0), (BLUE, 1), (RED, 1), (YELLOW, 1)]
@@ -1062,7 +1082,7 @@ def run_experiment():
     cvi_robotrew_percents = []
     stdvi_robotrew_percents = []
 
-    num_exps = 15
+    num_exps = 8
 
     n_altruism = 0
     n_total = 0
@@ -1080,7 +1100,7 @@ def run_experiment():
 
     timestep_to_accuracy_list = {}
 
-    with Pool(processes=10) as pool:
+    with Pool(processes=num_exps) as pool:
         k_round_results = pool.starmap(run_k_rounds, [(exp_num, task_reward) for exp_num in range(num_exps)])
         for result in k_round_results:
             cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
@@ -1164,7 +1184,7 @@ def run_experiment():
 
     plt.legend()
     plt.savefig(f"images/cirl_w_rc_{num_exps}_cdf.png")
-    plt.show()
+    # plt.show()
     plt.close()
 
     data = list([cvi_percents, stdvi_percents])
@@ -1187,7 +1207,7 @@ def run_experiment():
     # show the plot
     fig.tight_layout()
     plt.savefig(f"images/cirl_w_rc_{num_exps}_violin.png")
-    plt.show()
+    # plt.show()
     plt.close()
 
 
@@ -1231,7 +1251,7 @@ def run_experiment():
 
     fig.tight_layout()
     plt.savefig(f"images/cirl_w_rc_{num_exps}_bar.png")
-    plt.show()
+    # plt.show()
     plt.close()
 
     X = [i for i in np.arange(6)]
@@ -1246,7 +1266,7 @@ def run_experiment():
 
     plt.legend()
     plt.savefig(f"images/cirl_w_rc_{num_exps}_by_round_Std.png")
-    plt.show()
+    plt.close()
 
     X = [t for t in timestep_to_accuracy_list]
     Y = np.array([np.mean(timestep_to_accuracy_list[t]) for t in timestep_to_accuracy_list])
@@ -1257,7 +1277,7 @@ def run_experiment():
     plt.ylabel("Avg Prediction Accuracy")
     plt.title("LSTM Accuracy vs Timestep")
     plt.savefig(f"images/cirl_w_rc_{num_exps}_by_round_lstm_accuracy.png")
-    plt.show()
+    plt.close()
 
     print()
     print("times_max_prob_is_correct = ", times_max_prob_is_correct)
@@ -1284,7 +1304,7 @@ def run_experiment_without_multiprocess():
     cvi_robotrew_percents = []
     stdvi_robotrew_percents = []
 
-    num_exps = 1
+    num_exps = 100
 
     n_altruism = 0
     n_total = 0
@@ -1300,11 +1320,19 @@ def run_experiment_without_multiprocess():
     for percent in np.arange(-1.0, 1.01, step=0.01):
         percent_change[np.round(percent, 2)] = 0
 
+    timestep_to_accuracy_list = {}
+
     for exp_num in range(num_exps):
         exp_num_results = run_k_rounds(exp_num, task_reward)
-
         cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
-        cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal = exp_num_results
+        cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal, lstm_accuracies_list = exp_num_results
+
+        if lstm_accuracies_list is not None:
+            for timestep in range(len(lstm_accuracies_list)):
+                if timestep not in timestep_to_accuracy_list:
+                    timestep_to_accuracy_list[timestep] = []
+                timestep_to_accuracy_list[timestep].append(lstm_accuracies_list[timestep])
+
         num_equal_to_max.append(num_equal)
 
         if max_prob_is_correct is True:
@@ -1349,7 +1377,7 @@ def run_experiment_without_multiprocess():
     #
     # robotrew_means = [np.round(np.mean(cvi_robotrew_percents), 2), np.round(np.mean(stdvi_robotrew_percents), 2)]
     # robotrew_stds = [np.round(np.std(cvi_robotrew_percents), 2), np.round(np.std(stdvi_robotrew_percents), 2)]
-
+    print(f"ROBOT TYPE = {ROBOT_TYPE}")
     print("team rew stat results: ",
           stats.ttest_ind([elem * 100 for elem in cvi_percents], [elem * 100 for elem in stdvi_percents]))
     # print("human rew stat results: ",
@@ -1377,8 +1405,8 @@ def run_experiment_without_multiprocess():
     plt.xlabel("% of Opt CVI - % of Opt StdVI")
 
     plt.legend()
-    plt.savefig(f"images/cirl_w_rc_{num_exps}_cdf.png")
-    plt.show()
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_cdf.png")
+    # plt.show()
     plt.close()
 
     data = list([cvi_percents, stdvi_percents])
@@ -1400,8 +1428,8 @@ def run_experiment_without_multiprocess():
     ax.yaxis.grid(True)
     # show the plot
     fig.tight_layout()
-    plt.savefig(f"images/cirl_w_rc_{num_exps}_violin.png")
-    plt.show()
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_violin.png")
+    # plt.show()
     plt.close()
 
 
@@ -1444,8 +1472,8 @@ def run_experiment_without_multiprocess():
     # autolabel(ax, rects3, "right")
 
     fig.tight_layout()
-    plt.savefig(f"images/cirl_w_rc_{num_exps}_bar.png")
-    plt.show()
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_bar.png")
+    # plt.show()
     plt.close()
 
     X = [i for i in np.arange(6)]
@@ -1459,8 +1487,21 @@ def run_experiment_without_multiprocess():
     plt.xlabel("Episode")
 
     plt.legend()
-    plt.savefig(f"images/cirl_w_rc_{num_exps}_by_round_Std.png")
-    plt.show()
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_by_round_Std.png")
+    # plt.show()
+    plt.close()
+
+    X = [t for t in timestep_to_accuracy_list]
+    Y = np.array([np.mean(timestep_to_accuracy_list[t]) for t in timestep_to_accuracy_list])
+    Ystd = np.array([np.std(timestep_to_accuracy_list[t]) for t in timestep_to_accuracy_list])
+    plt.plot(X, Y, 'k-')
+    plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#FFD580', facecolor='#FFD580')
+    plt.xlabel("Timestep")
+    plt.ylabel("Avg Prediction Accuracy")
+    plt.title("LSTM Accuracy vs Timestep")
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_by_round_lstm_accuracy.png")
+    # plt.show()
+    plt.close()
 
     print()
     print("times_max_prob_is_correct = ", times_max_prob_is_correct)
@@ -1469,10 +1510,11 @@ def run_experiment_without_multiprocess():
     print("times_max_prob_is_close = ", times_max_prob_is_close)
     print("percent max_prob_is_close = ", times_max_prob_is_close / num_exps)
 
-    print("num_equal_to_max = ", np.mean(num_equal_to_max))
+    print(f"num_equal_to_max = {np.mean(num_equal_to_max)}, std: {np.std(num_equal_to_max)}")
 
     print("CVI Mean Percent of Opt reward = ", np.round(np.mean(cvi_percents), 3))
     print("CVI Std Percent of Opt reward = ", np.round(np.std(cvi_percents), 3))
+
 
 def run_experiment_for_update_threshold(update_threshold):
 
@@ -1945,7 +1987,8 @@ def run_experiment_random_human_without_multiprocess():
 
 if __name__ == "__main__":
     np.random.seed(0)
-    run_experiment()
+    # run_experiment()
+    run_experiment_without_multiprocess()
     # run_experiment_random_human_without_multiprocess()
     # evaluate_thresholds()
     # evaluate_human_alphas()

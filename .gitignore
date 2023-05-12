@@ -11,7 +11,7 @@ src/simultaneous_exp/data/
 src/simultaneous_exp/old_images/
 src/simultaneous_exp/images/
 src/clean_simultaneous_exp/images/
-
+src/noisy_human_function_approx/images/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
