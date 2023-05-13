@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
-from robot_model_birl_rew import Robot
-# from robot_model_fixed_lstm import Robot
+# from robot_model_birl_rew import Robot
+from robot_model_fixed_lstm import Robot
 # from robot_model_birl_prob_plan_out import Robot
 # from robot_model_lstm_rew import Robot
 from human_model import Greedy_Human, Collaborative_Human, Suboptimal_Collaborative_Human
@@ -25,7 +25,7 @@ import os
 import subprocess
 import glob
 
-ROBOT_TYPE = 'robot_model_birl_rew'
+ROBOT_TYPE = 'robot_model_fixed_lstm'
 
 BLUE = 0
 GREEN = 1
@@ -914,7 +914,7 @@ def plot_multiround_belief_history(multiround_belief_history, all_objects):
         os.remove(folder + file_name)
 
 
-def run_k_rounds(exp_num, task_reward, h_alpha=0.0, update_threshold=0.9):
+def run_k_rounds(exp_num, task_reward, h_alpha=0.0, update_threshold=0.9, random_human=False):
     print("exp_num = ", exp_num)
     # np.random.seed(1)
 
@@ -970,8 +970,15 @@ def run_k_rounds(exp_num, task_reward, h_alpha=0.0, update_threshold=0.9):
     object_keys = list(robot_rew.keys())
     human_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
 
-    random_h_alpha = np.random.uniform(0.5, 1.0)
-    random_h_deg_collab = np.random.uniform(0.1, 1.0)
+
+    # random_h_alpha = np.random.uniform(0.5, 1.0)
+    # random_h_deg_collab = np.random.uniform(0.1, 1.0)
+    if random_human is False:
+        random_h_alpha = h_alpha
+        random_h_deg_collab = 0.5
+    else:
+        random_h_alpha = np.random.uniform(0.5, 1.0)
+        random_h_deg_collab = np.random.uniform(0.1, 1.0)
     # random_h_alpha = h_alpha
     # random_h_deg_collab = 0.5
 
@@ -1305,6 +1312,11 @@ def run_experiment_without_multiprocess():
     stdvi_robotrew_percents = []
 
     num_exps = 100
+    random_human = False
+    r_h_str = 'random_human'
+    if random_human is False:
+        r_h_str = 'deter_human'
+
 
     n_altruism = 0
     n_total = 0
@@ -1323,7 +1335,7 @@ def run_experiment_without_multiprocess():
     timestep_to_accuracy_list = {}
 
     for exp_num in range(num_exps):
-        exp_num_results = run_k_rounds(exp_num, task_reward)
+        exp_num_results = run_k_rounds(exp_num, task_reward, random_human)
         cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
         cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal, lstm_accuracies_list = exp_num_results
 
@@ -1377,7 +1389,7 @@ def run_experiment_without_multiprocess():
     #
     # robotrew_means = [np.round(np.mean(cvi_robotrew_percents), 2), np.round(np.mean(stdvi_robotrew_percents), 2)]
     # robotrew_stds = [np.round(np.std(cvi_robotrew_percents), 2), np.round(np.std(stdvi_robotrew_percents), 2)]
-    print(f"ROBOT TYPE = {ROBOT_TYPE}")
+    print(f"ROBOT TYPE = {ROBOT_TYPE}, HUMAN TYPE = {r_h_str}")
     print("team rew stat results: ",
           stats.ttest_ind([elem * 100 for elem in cvi_percents], [elem * 100 for elem in stdvi_percents]))
     # print("human rew stat results: ",
@@ -1405,7 +1417,7 @@ def run_experiment_without_multiprocess():
     plt.xlabel("% of Opt CVI - % of Opt StdVI")
 
     plt.legend()
-    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_cdf.png")
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_{r_h_str}_cdf.png")
     # plt.show()
     plt.close()
 
@@ -1428,7 +1440,7 @@ def run_experiment_without_multiprocess():
     ax.yaxis.grid(True)
     # show the plot
     fig.tight_layout()
-    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_violin.png")
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_{r_h_str}_violin.png")
     # plt.show()
     plt.close()
 
@@ -1472,7 +1484,7 @@ def run_experiment_without_multiprocess():
     # autolabel(ax, rects3, "right")
 
     fig.tight_layout()
-    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_bar.png")
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_{r_h_str}_bar.png")
     # plt.show()
     plt.close()
 
@@ -1487,7 +1499,7 @@ def run_experiment_without_multiprocess():
     plt.xlabel("Episode")
 
     plt.legend()
-    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_by_round_Std.png")
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_{r_h_str}_by_round_Std.png")
     # plt.show()
     plt.close()
 
@@ -1499,7 +1511,7 @@ def run_experiment_without_multiprocess():
     plt.xlabel("Timestep")
     plt.ylabel("Avg Prediction Accuracy")
     plt.title("LSTM Accuracy vs Timestep")
-    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_by_round_lstm_accuracy.png")
+    plt.savefig(f"images/cirl_w_rc_{num_exps}_{ROBOT_TYPE}_{r_h_str}_by_round_lstm_accuracy.png")
     # plt.show()
     plt.close()
 
