@@ -1145,7 +1145,7 @@ def run_experiment():
     for percent in np.arange(-1.0, 1.01, step=0.01):
         percent_change[np.round(percent, 2)] = 0
 
-    with Pool(processes=100) as pool:
+    with Pool(processes=num_exps) as pool:
         k_round_results = pool.starmap(run_k_rounds, [(exp_num, task_reward) for exp_num in range(num_exps)])
         for result in k_round_results:
             cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
@@ -1515,7 +1515,7 @@ def run_experiment_without_multiprocess():
 
 
 if __name__ == "__main__":
-    np.random.seed(2)
+    # np.random.seed(2)
     run_experiment()
     # run_experiment_without_multiprocess()
     # run_experiment_h_alpha()

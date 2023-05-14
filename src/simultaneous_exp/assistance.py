@@ -911,6 +911,6 @@ def run_experiment_h_alpha():
 
 
 if __name__ == "__main__":
-    # run_experiment()
-    run_experiment_h_alpha()
+    run_experiment()
+    # run_experiment_h_alpha()
 

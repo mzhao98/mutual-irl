@@ -64,13 +64,15 @@ class Robot:
 
         self.true_human_rew_idx = None
         if self.robot_knows_human_rew is True:
-            print("Start setting up beliefs WITH true reward")
+            # print("Start setting up beliefs WITH true reward")
             self.set_beliefs_with_true_reward()
-            print("Done setting up beliefs WITH true reward")
+            # print("Done setting up beliefs WITH true reward")
         else:
-            print("Start setting up beliefs WITHOUT true reward")
+            # print("Start setting up beliefs WITHOUT true reward")
             self.set_beliefs_without_true_reward()
-            print("Done setting up beliefs WITHOUT true reward")
+            # print("Done setting up beliefs WITHOUT true reward")
+
+        # print("self.beliefs = ", self.beliefs)
 
         self.history_of_human_beliefs = []
         self.history_of_robot_beliefs_of_true_human_rew = []
@@ -94,11 +96,11 @@ class Robot:
         if self.permutes is not None:
             permutes = self.permutes
         else:
-            permutes = list(itertools.permutations(list(self.ind_rew.values())))
+            permutes = list(itertools.permutations(list(self.true_human_rew.values())))
             permutes = list(set(permutes))
         # print("permutes = ", permutes)
         # print("len(permutes", len(permutes))
-        object_keys = list(self.ind_rew.keys())
+        object_keys = list(self.true_human_rew.keys())
         for idx in range(len(permutes)):
             human_rew_values = permutes[idx]
             human_rew_dict = {object_keys[i]: list(human_rew_values)[i] for i in range(len(object_keys))}
@@ -127,7 +129,7 @@ class Robot:
             permutes = list(itertools.permutations(list(self.true_human_rew.values())))
             permutes = list(set(permutes))
 
-        object_keys = list(self.ind_rew.keys())
+        object_keys = list(self.true_human_rew.keys())
         self.belief_idx_to_q_values = {}
         for idx in range(len(permutes)):
             # print("starting idx = ", idx)
@@ -185,10 +187,10 @@ class Robot:
         normalize_Z = 0
 
         dict_prob_obs_given_theta = {}
-        print("true idex", self.true_human_rew_idx)
-        print("current_state", current_state)
-        print("human_action", human_action)
-        print("current_state[human_action]", current_state[human_action])
+        # print("true idex", self.true_human_rew_idx)
+        # print("current_state", current_state)
+        # print("human_action", human_action)
+        # print("current_state[human_action]", current_state[human_action])
         for idx in self.beliefs:
             # human_rew_dict = self.beliefs[idx]['reward_dict']
             q_values_table = self.belief_idx_to_q_values[idx]
@@ -208,7 +210,7 @@ class Robot:
                     else:
                         human_only_rew_for_action += (h_reward_hypothesis[human_action] )
             # human_only_rew_for_action = sum([(h_reward_hypothesis[human_action] + self.ind_rew[r_action]) for r_action in self.possible_actions])
-            print("human_only_rew_for_action", human_only_rew_for_action)
+            # print("human_only_rew_for_action", human_only_rew_for_action)
             # pdb.set_trace()
 
             if current_state[human_action] == 0:
@@ -234,9 +236,9 @@ class Robot:
                     sum_Z += human_only_rew_for_possible_action
                     all_possible_rews.append(human_only_rew_for_possible_action)
 
-            print("sum_Z", sum_Z)
+            # print("sum_Z", sum_Z)
             human_only_rew_for_action /= sum_Z
-            print("human_only_rew_for_action", human_only_rew_for_action)
+            # print("human_only_rew_for_action", human_only_rew_for_action)
             # q_value_for_obs = q_values_table[state_idx, joint_action_idx]
             exp_q_value_for_obs = np.exp(self.beta * human_only_rew_for_action)
             # print(f"idx = {idx}, human_only_rew_for_action = {human_only_rew_for_action}, exp_q_value_for_obs = {np.round(exp_q_value_for_obs, 2)}")
@@ -347,6 +349,10 @@ class Robot:
             if current_state[human_action] == 0:
                 human_only_rew_for_action = -2
 
+            print("human action", human_action)
+            print("human_only_rew_for_action", human_only_rew_for_action)
+
+
             sum_Z = 0
             all_possible_rews = []
             for possible_action in h_reward_hypothesis:
@@ -391,7 +397,7 @@ class Robot:
 
 
             # print(f"idx = {idx}: {h_reward_hypothesis}")
-            # print("human_only_rew_for_action", human_only_rew_for_action)
+            print("human_only_rew_for_action", human_only_rew_for_action)
             # q_value_for_obs = q_values_table[state_idx, joint_action_idx]
             exp_q_value_for_obs = np.exp(self.beta * human_only_rew_for_action)
             # print(f"idx = {idx}, human_only_rew_for_action = {human_only_rew_for_action}, exp_q_value_for_obs = {np.round(exp_q_value_for_obs, 2)}")
@@ -406,13 +412,14 @@ class Robot:
             normalize_Z += exp_q_value_for_obs
 
             dict_prob_obs_given_theta[idx] = exp_q_value_for_obs
+            # print("exp_q_value_for_obs", exp_q_value_for_obs)
 
         if normalize_Z == 0:
             # print("PROBLEM WITH Z=0 at dict_prob_obs_given_theta")
             normalize_Z = 0.01
         for idx in dict_prob_obs_given_theta:
             dict_prob_obs_given_theta[idx] = dict_prob_obs_given_theta[idx] / normalize_Z
-            # print(f"idx = {idx}, likelihood value = {np.round(dict_prob_obs_given_theta[idx],2)}")
+            print(f"idx = {idx}, likelihood value = {np.round(dict_prob_obs_given_theta[idx],2)}")
 
         normalization_denominator = 0
         for idx in self.beliefs:
@@ -1210,7 +1217,7 @@ class Robot:
 
     def collective_policy_evaluation(self):
         for i in range(self.small_maxiter):
-            print("CPE i=", i)
+            # print("CPE i=", i)
             # print(f"beliefs = {len(self.beliefs)}")
             # print(f"actions = {len(self.idx_to_action)}")
             # print(f"state = {self.n_states}")
@@ -1269,7 +1276,7 @@ class Robot:
                             # if r_act is None:
                             #     j_prob = 1
                             # j_prob = possible_joint_action_to_prob[(r_act, h_act)]
-                            j_prob = 1
+                            # j_prob = 1
 
                             next_state, (team_rew, robot_rew, human_rew), done = \
                                 self.step_given_state(current_state_remaining_objects, joint_action, h_reward_hypothesis)
@@ -1306,12 +1313,12 @@ class Robot:
                             # elif current_state_remaining_objects[r_act] == 0:
                             #     robot_rew -= 1
 
-                            expected_reward_sa += team_rew + ((  robot_rew + human_rew) * probability_of_hyp * j_prob)
+                            expected_reward_sa += team_rew + (( robot_rew + human_rew) * probability_of_hyp * j_prob)
 
-                            if r_act is None:
-                                expected_reward_sa -= 0
-                            elif current_state_remaining_objects[r_act] == 0:
-                                expected_reward_sa -= 100
+                            # if r_act is None:
+                            #     expected_reward_sa -= 0
+                            # elif current_state_remaining_objects[r_act] == 0:
+                            #     expected_reward_sa -= 100
 
                             robot_only_reward += (robot_rew * probability_of_hyp)
                             belief_added_reward += ((team_rew + human_rew) * probability_of_hyp * j_prob)
@@ -1353,7 +1360,7 @@ class Robot:
                 # print("time for 1 state iter", end_time - start_time)
             # print("delta = ", delta)
             if delta < self.epsilson:
-                print("CPE DONE at iteration ", i)
+                # print("CPE DONE at iteration ", i)
                 break
 
         return self.vf, self.pi
@@ -1426,7 +1433,7 @@ class Robot:
                         # if r_act is None:
                         #     j_prob = 1
                         # j_prob = possible_joint_action_to_prob[(r_act, h_act)]
-                        j_prob = 1
+                        # j_prob = 1
                         # h_prob = 1/(1+np.exp(-60*(h_prob - self.confidence_threshold)))
                         # if h_prob == 0:
                         #     continue
@@ -1454,10 +1461,10 @@ class Robot:
                         # expected_reward_sa += ((team_rew + robot_rew + human_rew) * probability_of_hyp * j_prob)
                         expected_reward_sa += team_rew + (( robot_rew + human_rew) * probability_of_hyp * j_prob)
 
-                        if r_act is None:
-                            expected_reward_sa -= 0
-                        elif current_state_remaining_objects[r_act] == 0:
-                            expected_reward_sa -= 100
+                        # if r_act is None:
+                        #     expected_reward_sa -= 0
+                        # elif current_state_remaining_objects[r_act] == 0:
+                        #     expected_reward_sa -= 100
 
                         robot_only_reward +=  (robot_rew * probability_of_hyp)
                         belief_added_reward += ((team_rew + human_rew) * probability_of_hyp * j_prob)
@@ -2892,12 +2899,12 @@ class Robot:
 
         if self.vi_type == 'cvi':
             if self.robot_knows_human_rew is False:
-                print("Running collective_value_iteration")
+                # print("Running collective_value_iteration")
                 # self.collective_value_iteration()
                 self.collective_policy_iteration()
                 # self.collective_policy_iteration_w_h_alpha(h_alpha)
                 # self.collective_value_iteration_argmax()
-                print("Done running collective_value_iteration")
+                # print("Done running collective_value_iteration")
             else:
                 # print("Running collective_value_iteration_with_true_human_reward")
                 # self.collective_value_iteration()
@@ -2909,7 +2916,7 @@ class Robot:
         return
 
 
-    def act(self, state):
+    def act(self, state, is_start=False):
         # max_key = max(self.beliefs, key=lambda k: self.beliefs[k]['prob'])
         # print("max prob belief", self.beliefs[max_key]['reward_dict'])
 

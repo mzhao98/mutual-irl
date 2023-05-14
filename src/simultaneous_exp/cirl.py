@@ -821,7 +821,7 @@ def run_experiment():
     cvi_robotrew_percents = []
     stdvi_robotrew_percents = []
 
-    num_exps = 100
+    num_exps = 10
 
     n_altruism = 0
     n_total = 0

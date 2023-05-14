@@ -24,7 +24,7 @@ import os
 
 
 class Greedy_Human:
-    def __init__(self, ind_rew, true_robot_rew, starting_state, h_alpha=0.0):
+    def __init__(self, ind_rew, true_robot_rew, starting_state, h_alpha=0.0, h_deg_collab=0.5):
         self.ind_rew = ind_rew
         self.true_robot_rew = true_robot_rew
         self.h_alpha = h_alpha
@@ -340,7 +340,8 @@ class Suboptimal_Collaborative_Human:
         for (candidate_r_act, candidate_h_act) in self.possible_actions:
             team_rew, r_rew, h_rew = self.step_given_state(state, (candidate_r_act, candidate_h_act))
             # print("(candidate_r_act, candidate_h_act)", (candidate_r_act, candidate_h_act))
-            candidate_rew = team_rew + ((self.h_deg_collab) * r_rew) + ((1-self.h_deg_collab) * h_rew)
+            candidate_rew = team_rew + ((self.h_deg_collab*100) * r_rew) + ((1-self.h_deg_collab) * 100 * h_rew)
+            # candidate_rew = team_rew + ((1 - self.h_deg_collab) * 100 * h_rew)
             if self.h_deg_collab == 0.5:
                 candidate_rew = team_rew + (r_rew) + (h_rew)
             # print("candidate_rew", candidate_rew)

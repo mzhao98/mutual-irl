@@ -170,9 +170,9 @@ class Human_LSTM(nn.Module):
         self.hidden_size = hidden_size  # hidden state
         self.seq_length = seq_length  # sequence length
 
-        self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size,
-                            num_layers=num_layers, batch_first=True)  # lstm
-        self.fc_1 = nn.Linear(hidden_size, 128)  # fully connected 1
+        # self.lstm = nn.LSTM(input_size=input_size, hidden_size=hidden_size,
+        #                     num_layers=num_layers, batch_first=True)  # lstm
+        self.fc_1 = nn.Linear(input_size, 128)  # fully connected 1
         self.fc_2 = nn.Linear(128, 64)  # fully connected 1
         #         self.fc_3 =  nn.Linear(256, 64) #fully connected 1
         self.fc = nn.Linear(64, num_classes)  # fully connected last layer
@@ -180,20 +180,20 @@ class Human_LSTM(nn.Module):
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
 
-    def forward(self, x, h_0, c_0):
+    def forward(self, x):
         # h_0 = Variable(torch.zeros(self.num_layers, x.size(0), self.hidden_size))  # hidden state
         # c_0 = Variable(torch.zeros(self.num_layers, x.size(0), self.hidden_size))  # internal state
         # Propagate input through LSTM
-        output, (hn_orig, cn) = self.lstm(x, (h_0, c_0))  # lstm with input, hidden, and internal state
-        hn = hn_orig.view(-1, self.hidden_size)  # reshaping the data for Dense layer next
+        # output, (hn_orig, cn) = self.lstm(x, (h_0, c_0))  # lstm with input, hidden, and internal state
+        # hn = hn_orig.view(-1, self.hidden_size)  # reshaping the data for Dense layer next
         #         out = self.relu(hn)
-        out = self.fc_1(hn)  # first Dense
-        #         out = self.relu(out) #relu
+        out = self.fc_1(x)  # first Dense
+        out = self.relu(out) #relu
         out = self.fc_2(out)  # first Dense
-        #         out = self.fc_3(out) #first Dense
+        out = self.relu(out) #first Dense
         out = self.fc(out)  # Final Output
         out = self.softmax(out)
-        return out, (hn_orig, cn)
+        return out
 
 class Robot:
     def __init__(self, team_rew, ind_rew, human_rew, starting_state, robot_knows_human_rew, permutes, vi_type, is_collaborative_human, update_threshold=0.9):
@@ -363,6 +363,10 @@ class Robot:
         one_hot_robot_action[self.action_to_num[robot_action]] = 1
         add_x.extend(one_hot_robot_action)
         add_y = self.action_to_num[human_action]
+
+        # one_hot_human_action = [0 for _ in range(len(self.action_to_num))]
+        # one_hot_human_action[self.action_to_num[human_action]] = 1
+        # add_y = one_hot_human_action
 
         self.gameplay_trainX.append(add_x)
         self.gameplay_trainY.append(add_y)
@@ -558,6 +562,9 @@ class Robot:
                 add_x.extend(one_hot_r_action)
 
                 add_y = self.action_to_num[h_action]
+                # one_hot_human_action = [0 for _ in range(len(self.action_to_num))]
+                # one_hot_human_action[self.action_to_num[h_action]] = 1
+                # add_y = one_hot_human_action
 
                 current_state_remaining_objects, (team_rew, robot_rew, human_rew), done = \
                     self.step_given_state(current_state_remaining_objects, joint_action, random_human_rew)
@@ -578,11 +585,11 @@ class Robot:
 
         # trainY = np.squeeze(trainY, 1)
 
-        X_train_tensors = Variable(torch.Tensor(trainX))
+        X_train_tensors_final = Variable(torch.Tensor(trainX))
 
         y_train_tensors = Variable(torch.Tensor(trainY))
 
-        X_train_tensors_final = torch.reshape(X_train_tensors, (X_train_tensors.shape[0], 1, X_train_tensors.shape[1]))
+        # X_train_tensors_final = torch.reshape(X_train_tensors, (X_train_tensors.shape[0], 1, X_train_tensors.shape[1]))
 
         # self.lstm_Xshape = X_train_tensors_final.size(0)
 
@@ -590,7 +597,7 @@ class Robot:
         self.num_epochs = 1001  # 1000 epochs
         self.learning_rate = 0.0001  # 0.001 lr
 
-        self.input_size = X_train_tensors.shape[1]  # number of features
+        self.input_size = X_train_tensors_final.shape[1]  # number of features
         self.hidden_size = 4  # number of features in hidden state
         self.num_layers = 1  # number of stacked lstm layers
 
@@ -615,23 +622,23 @@ class Robot:
 
         for epoch in range(self.num_epochs):
 
-            h_n = Variable(
-                torch.zeros(self.num_layers, 1, self.hidden_size))  # hidden state
-            c_n = Variable(
-                torch.zeros(self.num_layers, 1, self.hidden_size))  # internal state
+            # h_n = Variable(
+            #     torch.zeros(self.num_layers, 1, self.hidden_size))  # hidden state
+            # c_n = Variable(
+            #     torch.zeros(self.num_layers, 1, self.hidden_size))  # internal state
             total_loss = 0
             for i in range(X_train_tensors_final.shape[0]):
-                x_input = X_train_tensors_final[i:i+1, :, :]
+                x_input = X_train_tensors_final[i:i+1, :]
                 y_input = y_train_tensors[i:i + 1]
                 # print("x_input", x_input.shape)
                 # print("y_input", y_input.shape)
-                outputs, (h_n, c_n) = self.human_lstm.forward(x_input, h_n, c_n)  # forward pass
-                h_n, c_n = h_n.detach(), c_n.detach()
+                outputs = self.human_lstm.forward(x_input)  # forward pass
+                # h_n, c_n = h_n.detach(), c_n.detach()
                 self.optimizer.zero_grad()  # caluclate the gradient, manually setting to 0
 
                 # obtain the loss function
-                #     print("outputs", outputs)
-                #     print("y_train_tensors", y_train_tensors)
+                # print("outputs", outputs.shape)
+                # print("y_train_tensors", y_input.shape)
                 loss = self.criterion(outputs, y_input.long())
                 losses.append(loss.detach().numpy())
                 total_loss += loss.detach().numpy()
@@ -659,11 +666,11 @@ class Robot:
             torch.zeros(self.num_layers, 1, self.hidden_size))  # internal state
         total_loss = 0
         for i in range(X_train_tensors_final.shape[0]):
-            x_input = X_train_tensors_final[i:i + 1, :, :]
+            x_input = X_train_tensors_final[i:i + 1,  :]
             y_input = y_train_tensors[i:i + 1]
             # print("x_input", x_input.shape)
             # print("y_input", y_input.shape)
-            outputs, (h_n, c_n) = self.human_lstm.forward(x_input, h_n, c_n)  # forward pass
+            outputs = self.human_lstm.forward(x_input)  # forward pass
             outputs = outputs.detach().numpy()
             pred_idx = np.argmax(outputs[0])
             true_idx = int(true_y[i])
@@ -2061,11 +2068,11 @@ class Robot:
         self.enumerate_states()
 
         if len(self.gameplay_trainX) > 0:
-            X_train_tensors = Variable(torch.Tensor(self.gameplay_trainX))
+            X_train_tensors_final = Variable(torch.Tensor(self.gameplay_trainX))
 
             y_train_tensors = Variable(torch.Tensor(self.gameplay_trainY))
 
-            X_train_tensors_final = torch.reshape(X_train_tensors, (X_train_tensors.shape[0], 1, X_train_tensors.shape[1]))
+            # X_train_tensors_final = torch.reshape(X_train_tensors, (X_train_tensors.shape[0], 1, X_train_tensors.shape[1]))
             self.train_lstm(X_train_tensors_final, y_train_tensors)
 
         if self.vi_type == 'cvi':
@@ -2110,18 +2117,18 @@ class Robot:
         #     torch.zeros(self.num_layers, self.lstm_Xshape, self.hidden_size))  # hidden state
         # c_n = Variable(
         #     torch.zeros(self.num_layers, self.lstm_Xshape, self.hidden_size))  # internal state
-        if self.h_n is None:
-            self.h_n = Variable(
-                torch.zeros(self.num_layers, X_train_tensors_final.size(0), self.hidden_size))  # hidden state
-            self.c_n = Variable(
-                torch.zeros(self.num_layers, X_train_tensors_final.size(0), self.hidden_size))  # internal state
+        # if self.h_n is None:
+        #     self.h_n = Variable(
+        #         torch.zeros(self.num_layers, X_train_tensors_final.size(0), self.hidden_size))  # hidden state
+        #     self.c_n = Variable(
+        #         torch.zeros(self.num_layers, X_train_tensors_final.size(0), self.hidden_size))  # internal state
+        #
+        #
+        # if is_start:
+        #     self.h_n = Variable(torch.zeros(self.num_layers, X_train_tensors_final.size(0), self.hidden_size))  # hidden state
+        #     self.c_n = Variable(torch.zeros(self.num_layers, X_train_tensors_final.size(0), self.hidden_size))  # internal state
 
-
-        if is_start:
-            self.h_n = Variable(torch.zeros(self.num_layers, X_train_tensors_final.size(0), self.hidden_size))  # hidden state
-            self.c_n = Variable(torch.zeros(self.num_layers, X_train_tensors_final.size(0), self.hidden_size))  # internal state
-
-        outputs, (self.h_n, self.c_n) = self.human_lstm.forward(X_train_tensors_final, self.h_n, self.c_n)  # forward pass
+        outputs = self.human_lstm.forward(X_train_tensors_final)  # forward pass
 
         # outputs, (hn, cn) = self.human_lstm.forward(X_train_tensors_final)  # forward pass
         outputs = outputs.detach().numpy()[0]
@@ -2157,7 +2164,11 @@ class Robot:
             single_r_action = j_action[0]
             single_h_action = j_action[1]
             h_action_number = self.action_to_num[single_h_action]
-            prob_human_act = outputs[h_action_number]
+
+            # print("outputs", outputs)
+            prob_human_act = outputs[0][h_action_number]
+            # print("outputs", outputs)
+            # print("prob_human_act", prob_human_act)
             if single_r_action not in single_action_distribution:
                 single_action_distribution[single_r_action] = 0
             single_action_distribution[single_r_action] += (q_value_for_joint * prob_human_act)

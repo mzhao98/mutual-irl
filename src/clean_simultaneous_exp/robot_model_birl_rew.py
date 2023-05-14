@@ -94,11 +94,11 @@ class Robot:
         if self.permutes is not None:
             permutes = self.permutes
         else:
-            permutes = list(itertools.permutations(list(self.ind_rew.values())))
+            permutes = list(itertools.permutations(list(self.true_human_rew.values())))
             permutes = list(set(permutes))
         # print("permutes = ", permutes)
         # print("len(permutes", len(permutes))
-        object_keys = list(self.ind_rew.keys())
+        object_keys = list(self.true_human_rew.keys())
         for idx in range(len(permutes)):
             human_rew_values = permutes[idx]
             human_rew_dict = {object_keys[i]: list(human_rew_values)[i] for i in range(len(object_keys))}
@@ -127,7 +127,7 @@ class Robot:
             permutes = list(itertools.permutations(list(self.true_human_rew.values())))
             permutes = list(set(permutes))
 
-        object_keys = list(self.ind_rew.keys())
+        object_keys = list(self.true_human_rew.keys())
         self.belief_idx_to_q_values = {}
         for idx in range(len(permutes)):
             # print("starting idx = ", idx)
