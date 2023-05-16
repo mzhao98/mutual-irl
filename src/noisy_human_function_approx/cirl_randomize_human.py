@@ -26,7 +26,7 @@ import os
 import subprocess
 import glob
 
-ROBOT_TYPE = 'just_testing_cirl_rc_wo_exp_wo_replan'
+ROBOT_TYPE = 'exp1_cirl_wo_expl_wo_replan'
 
 BLUE = 0
 GREEN = 1
@@ -627,6 +627,7 @@ class Simultaneous_Cleanup():
                 current_state = copy.deepcopy(self.state_remaining_objects)
 
                 robot_action = self.robot.act(current_state, is_start=is_start, round_no=round_no)
+                # robot_action = self.robot.act_old(current_state)
                 is_start = False
                 # print("current_state for human acting", current_state)
                 human_action = self.human.act(current_state)
@@ -685,8 +686,8 @@ class Simultaneous_Cleanup():
                         if type(self.robot) == Robot:
                             self.robot.update_based_on_h_action(current_state, prev_robot_action, human_action)
 
-                if type(self.robot) == Robot:
-                    self.robot.setup_value_iteration()
+                # if type(self.robot) == Robot:
+                #     self.robot.setup_value_iteration()
 
                 prev_robot_action = robot_action
 
@@ -927,7 +928,7 @@ def plot_multiround_belief_history(multiround_belief_history, all_objects):
         os.remove(folder + file_name)
 
 
-def run_k_rounds(exp_num, task_reward, h_alpha=0.0, update_threshold=0.9, random_human=False):
+def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_human):
     print("exp_num = ", exp_num)
     # np.random.seed(1)
 
@@ -944,13 +945,13 @@ def run_k_rounds(exp_num, task_reward, h_alpha=0.0, update_threshold=0.9, random
     #              (RED, 0): 0,
     #              (BLUE, 1): 0,
     #              (RED, 1): 0}
-
+    np.random.seed(seed)
     pref = np.random.choice([0, 1])
     if pref == 0:
         pref = (-5, 0)
     else:
         pref = (0, -5)
-    # pref = (0, 0)
+    pref = (0, 0)
 
     human_rew = {
         (BLUE, 0): np.random.randint(3, 10),
@@ -959,6 +960,7 @@ def run_k_rounds(exp_num, task_reward, h_alpha=0.0, update_threshold=0.9, random
         (RED, 1): np.random.randint(3, 10),
         # (YELLOW, 1): np.random.randint(3,10)
     }
+    print("human_rew", human_rew)
 
     # human_rew = {
     #     (BLUE, 0): pref[0],
@@ -967,7 +969,7 @@ def run_k_rounds(exp_num, task_reward, h_alpha=0.0, update_threshold=0.9, random
     #     (RED, 1): 0,
     #     # (YELLOW, 1): np.random.randint(3,10)
     # }
-
+    # pref = (0,0)
     robot_rew = {
         (BLUE, 0): pref[0],
         (RED, 0): pref[1],
@@ -1020,6 +1022,8 @@ def run_k_rounds(exp_num, task_reward, h_alpha=0.0, update_threshold=0.9, random
         random_h_alpha = np.random.uniform(0.1, 1.0)
         random_h_deg_collab = np.random.uniform(0.1, 1.0)
 
+    # print("random_h_alpha", random_h_alpha)
+    # print("random_h_deg_collab",random_h_deg_collab)
     # random_h_alpha = 0.9
     # random_h_deg_collab = 1
 
@@ -1140,6 +1144,14 @@ def run_experiment():
     n_total = 0
     n_greedy = 0
 
+    random_human = False
+    r_h_str = 'random_human'
+    if random_human is False:
+        r_h_str = 'deter_human'
+
+    h_alpha = 0
+    update_threshold = 0.9
+
     round_to_percent_rewards = {i: [] for i in range(6)}
 
     times_max_prob_is_correct = 0
@@ -1151,17 +1163,19 @@ def run_experiment():
         percent_change[np.round(percent, 2)] = 0
 
     timestep_to_accuracy_list = {}
+    random_seeds = np.random.randint(0,100000000, num_exps)
 
     with Pool(processes=num_exps) as pool:
-        k_round_results = pool.starmap(run_k_rounds, [(exp_num, task_reward) for exp_num in range(num_exps)])
+        k_round_results = pool.starmap(run_k_rounds, [(exp_num, task_reward, random_seeds[exp_num], h_alpha, update_threshold, random_human) for exp_num in range(num_exps)])
         for result in k_round_results:
             cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
             cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal, lstm_accuracies_list = result
 
-            for timestep in range(len(lstm_accuracies_list)):
-                if timestep not in timestep_to_accuracy_list:
-                    timestep_to_accuracy_list[timestep] = []
-                timestep_to_accuracy_list[timestep].append(lstm_accuracies_list[timestep])
+            if lstm_accuracies_list is not None:
+                for timestep in range(len(lstm_accuracies_list)):
+                    if timestep not in timestep_to_accuracy_list:
+                        timestep_to_accuracy_list[timestep] = []
+                    timestep_to_accuracy_list[timestep].append(lstm_accuracies_list[timestep])
 
             num_equal_to_max.append(num_equal)
 
@@ -1317,17 +1331,18 @@ def run_experiment():
     # plt.show()
     plt.close()
 
-    X = [t for t in timestep_to_accuracy_list]
-    Y = np.array([np.mean(timestep_to_accuracy_list[t]) for t in timestep_to_accuracy_list])
-    Ystd = np.array([np.std(timestep_to_accuracy_list[t]) for t in timestep_to_accuracy_list])
-    plt.plot(X, Y, 'k-')
-    plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#FFD580', facecolor='#FFD580')
-    plt.xlabel("Timestep")
-    plt.ylabel("Avg Prediction Accuracy")
-    plt.title("LSTM Accuracy vs Timestep")
-    plt.savefig(f"images/cirl_{num_exps}_{ROBOT_TYPE}_{r_h_str}_by_round_lstm_accuracy.png")
-    # plt.show()
-    plt.close()
+    if len(timestep_to_accuracy_list) > 0:
+        X = [t for t in timestep_to_accuracy_list]
+        Y = np.array([np.mean(timestep_to_accuracy_list[t]) for t in timestep_to_accuracy_list])
+        Ystd = np.array([np.std(timestep_to_accuracy_list[t]) for t in timestep_to_accuracy_list])
+        plt.plot(X, Y, 'k-')
+        plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#FFD580', facecolor='#FFD580')
+        plt.xlabel("Timestep")
+        plt.ylabel("Avg Prediction Accuracy")
+        plt.title("LSTM Accuracy vs Timestep")
+        plt.savefig(f"images/cirl_{num_exps}_{ROBOT_TYPE}_{r_h_str}_by_round_lstm_accuracy.png")
+        # plt.show()
+        plt.close()
 
     print()
     print("times_max_prob_is_correct = ", times_max_prob_is_correct)
@@ -1338,8 +1353,10 @@ def run_experiment():
 
     print(f"num_equal_to_max = {np.mean(num_equal_to_max)}, std: {np.std(num_equal_to_max)}")
 
-    print("CVI Mean Percent of Opt reward = ", np.round(np.mean(cvi_percents), 3))
-    print("CVI Std Percent of Opt reward = ", np.round(np.std(cvi_percents), 3))
+    print("cvi_percents", cvi_percents)
+
+    print("CVI Mean Percent of Opt reward = ", np.round(np.mean(cvi_percents), 5))
+    print("CVI Std Percent of Opt reward = ", np.std(cvi_percents))
 
 
 def run_experiment_without_multiprocess():
@@ -1381,11 +1398,11 @@ def run_experiment_without_multiprocess():
         cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
         cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal, lstm_accuracies_list = exp_num_results
 
-        if lstm_accuracies_list is not None:
-            for timestep in range(len(lstm_accuracies_list)):
-                if timestep not in timestep_to_accuracy_list:
-                    timestep_to_accuracy_list[timestep] = []
-                timestep_to_accuracy_list[timestep].append(lstm_accuracies_list[timestep])
+        # if lstm_accuracies_list is not None:
+        #     for timestep in range(len(lstm_accuracies_list)):
+        #         if timestep not in timestep_to_accuracy_list:
+        #             timestep_to_accuracy_list[timestep] = []
+        #         timestep_to_accuracy_list[timestep].append(lstm_accuracies_list[timestep])
 
         num_equal_to_max.append(num_equal)
 
@@ -1596,7 +1613,7 @@ def run_experiment_for_update_threshold(update_threshold):
 
     with Pool(processes=5) as pool:
         k_round_results = pool.starmap(run_k_rounds,
-                                       [(exp_num, task_reward, 0.0, update_threshold) for exp_num in range(num_exps)])
+                                       [(exp_num, task_reward, 0.0, update_threshold, random_human) for exp_num in range(num_exps)])
         for result in k_round_results:
             cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
             cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal = result
@@ -2034,7 +2051,7 @@ def run_experiment_random_human_without_multiprocess():
 
 
 if __name__ == "__main__":
-    np.random.seed(15)
+    np.random.seed(0)
     run_experiment()
     # run_experiment_without_multiprocess()
     # run_experiment_random_human_without_multiprocess()

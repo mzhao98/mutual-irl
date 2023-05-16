@@ -362,6 +362,9 @@ class Suboptimal_Collaborative_Human:
                     h_action = candidate_h_act
                     max_reward = candidate_rew
 
+                if h_action not in other_actions:
+                    other_actions.append(h_action)
+
         #
         # if len(best_human_act) == 0:
         #     h_action = None
@@ -369,10 +372,11 @@ class Suboptimal_Collaborative_Human:
         #     # h_action = best_human_act[np.random.choice(range(len(best_human_act)))]
         #     h_action = best_human_act[0]
         #
-        # r = np.random.uniform(0, 1)
-        # if r < self.h_alpha:
-        #     if len(other_actions) > 0:
-        #         h_action = other_actions[np.random.choice(np.arange(len(other_actions)))]
+        other_actions.remove(h_action)
+        r = np.random.uniform(0, 1)
+        if r < self.h_alpha:
+            if len(other_actions) > 0:
+                h_action = other_actions[np.random.choice(np.arange(len(other_actions)))]
 
         return h_action
 
