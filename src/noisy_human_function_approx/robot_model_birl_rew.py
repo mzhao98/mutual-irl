@@ -22,6 +22,7 @@ import json
 import sys
 import os
 from datetime import datetime
+from scipy.stats import entropy
 
 
 
@@ -278,6 +279,126 @@ class Robot:
 
             # print(f"belief {self.beliefs[idx]['reward_dict']} likelihood is {self.beliefs[idx]['prob']}")
 
+    def hypothesize_updated_belief(self, current_state, human_action):
+        updated_beliefs = copy.deepcopy(self.beliefs)
+        normalize_Z = 0
+
+        dict_prob_obs_given_theta = {}
+        for idx in updated_beliefs:
+            h_reward_hypothesis = updated_beliefs[idx]['reward_dict']
+
+            max_composite_reward_for_human_action = -100
+            for r_action in self.possible_actions:
+                human_r, robot_r = 0, 0
+                copy_current_state = copy.deepcopy(current_state)
+
+                if human_action is not None:
+                    if human_action[1] == 1 and human_action == r_action and copy_current_state[human_action] > 0:
+                        copy_current_state[human_action] -= 1
+                        human_r = h_reward_hypothesis[human_action]
+                        robot_r = self.ind_rew[r_action]
+
+                    if human_action[1] == 0 and copy_current_state[human_action] > 0:
+                        copy_current_state[human_action] -= 1
+                        human_r = h_reward_hypothesis[human_action]
+
+                if r_action is not None:
+                    if r_action[1] == 0 and copy_current_state[r_action] > 0:
+                        copy_current_state[r_action] -= 1
+                        robot_r = self.ind_rew[r_action]
+
+                team_r = -2
+                candidate_rew = team_r + robot_r + human_r
+                if candidate_rew > max_composite_reward_for_human_action:
+                    max_composite_reward_for_human_action = candidate_rew
+
+            human_only_rew_for_action = max_composite_reward_for_human_action
+
+
+
+            sum_Z = 0
+            all_possible_rews = []
+            for possible_action in h_reward_hypothesis:
+                if current_state[possible_action] > 0:
+
+                    human_only_rew_for_possible_action = -100
+                    for r_action in self.possible_actions:
+                        human_r, robot_r = 0, 0
+                        copy_current_state = copy.deepcopy(current_state)
+
+                        if possible_action is not None:
+                            if possible_action[1] == 1 and possible_action == r_action and copy_current_state[
+                                possible_action] > 0:
+                                copy_current_state[possible_action] -= 1
+                                human_r = h_reward_hypothesis[possible_action]
+                                robot_r = self.ind_rew[r_action]
+
+                            if possible_action[1] == 0 and copy_current_state[possible_action] > 0:
+                                copy_current_state[possible_action] -= 1
+                                human_r = h_reward_hypothesis[possible_action]
+
+                        if r_action is not None:
+                            if r_action[1] == 0 and copy_current_state[r_action] > 0:
+                                copy_current_state[r_action] -= 1
+                                robot_r = self.ind_rew[r_action]
+
+                        team_r = -2
+                        candidate_rew = team_r + robot_r + human_r
+                        if candidate_rew > human_only_rew_for_possible_action:
+                            human_only_rew_for_possible_action = candidate_rew
+
+                    sum_Z += human_only_rew_for_possible_action
+                    all_possible_rews.append(human_only_rew_for_possible_action)
+
+            # print("sum_Z", sum_Z)
+            # human_only_rew_for_action /= sum_Z
+            if human_only_rew_for_action == max(all_possible_rews):
+                human_only_rew_for_action = self.update_threshold
+            else:
+                human_only_rew_for_action = 1 - self.update_threshold
+
+            # print(f"idx = {idx}: {h_reward_hypothesis}")
+            # print("human_only_rew_for_action", human_only_rew_for_action)
+            # q_value_for_obs = q_values_table[state_idx, joint_action_idx]
+            exp_q_value_for_obs = np.exp(self.beta * human_only_rew_for_action)
+            # print(f"idx = {idx}, human_only_rew_for_action = {human_only_rew_for_action}, exp_q_value_for_obs = {np.round(exp_q_value_for_obs, 2)}")
+            # print("h_reward_hypothesis", h_reward_hypothesis)
+            # exp_q_value_for_obs = q_value_for_obs
+
+            # print()
+            # print("belief", self.beliefs[idx]['reward_dict'])
+            # print("q_value_for_obs", q_value_for_obs)
+            # print("exp_q_value_for_obs", exp_q_value_for_obs)
+
+            normalize_Z += exp_q_value_for_obs
+
+            dict_prob_obs_given_theta[idx] = exp_q_value_for_obs
+            # print("exp_q_value_for_obs", exp_q_value_for_obs)
+
+        if normalize_Z == 0:
+            # print("PROBLEM WITH Z=0 at dict_prob_obs_given_theta")
+            normalize_Z = 0.01
+        for idx in dict_prob_obs_given_theta:
+            dict_prob_obs_given_theta[idx] = dict_prob_obs_given_theta[idx] / normalize_Z
+            # print(f"idx = {idx}, likelihood value = {np.round(dict_prob_obs_given_theta[idx],2)}")
+
+        normalization_denominator = 0
+        for idx in updated_beliefs:
+            prob_theta = updated_beliefs[idx]['prob']
+            prob_obs_given_theta_normalized = dict_prob_obs_given_theta[idx]
+            updated_beliefs[idx]['prob'] = prob_theta * prob_obs_given_theta_normalized
+            # print(f"idx = {idx}, prob before normalize = {np.round(self.beliefs[idx]['prob'], 2)}")
+            normalization_denominator += prob_theta * prob_obs_given_theta_normalized
+
+        # pdb.set_trace()
+        if normalization_denominator == 0:
+            # print("PROBLEM WITH Z=0 at beliefs")
+            normalization_denominator = 0.01
+        for idx in updated_beliefs:
+            updated_beliefs[idx]['prob'] = updated_beliefs[idx]['prob'] / normalization_denominator
+            # print(f"idx = {idx}, final prob = {np.round(self.beliefs[idx]['prob'],2)}")
+        return updated_beliefs
+
     def update_based_on_h_action(self, current_state, robot_action, human_action):
         # print("current_state, robot_action, human_action", (current_state, robot_action, human_action))
         self.episode_history.append((current_state, robot_action, human_action))
@@ -346,11 +467,11 @@ class Robot:
             # print("human_only_rew_for_action", human_only_rew_for_action)
             # pdb.set_trace()
 
-            if current_state[human_action] == 0:
-                human_only_rew_for_action = -2
+            # if current_state[human_action] == 0:
+            #     human_only_rew_for_action = -2
 
-            print("human action", human_action)
-            print("human_only_rew_for_action", human_only_rew_for_action)
+            # print("human action", human_action)
+            # print("human_only_rew_for_action", human_only_rew_for_action)
 
 
             sum_Z = 0
@@ -397,7 +518,7 @@ class Robot:
 
 
             # print(f"idx = {idx}: {h_reward_hypothesis}")
-            print("human_only_rew_for_action", human_only_rew_for_action)
+            # print("human_only_rew_for_action", human_only_rew_for_action)
             # q_value_for_obs = q_values_table[state_idx, joint_action_idx]
             exp_q_value_for_obs = np.exp(self.beta * human_only_rew_for_action)
             # print(f"idx = {idx}, human_only_rew_for_action = {human_only_rew_for_action}, exp_q_value_for_obs = {np.round(exp_q_value_for_obs, 2)}")
@@ -419,7 +540,7 @@ class Robot:
             normalize_Z = 0.01
         for idx in dict_prob_obs_given_theta:
             dict_prob_obs_given_theta[idx] = dict_prob_obs_given_theta[idx] / normalize_Z
-            print(f"idx = {idx}, likelihood value = {np.round(dict_prob_obs_given_theta[idx],2)}")
+            # print(f"idx = {idx}, likelihood value = {np.round(dict_prob_obs_given_theta[idx],2)}")
 
         normalization_denominator = 0
         for idx in self.beliefs:
@@ -436,7 +557,7 @@ class Robot:
         for idx in self.beliefs:
             self.beliefs[idx]['prob'] = self.beliefs[idx]['prob'] / normalization_denominator
             # print(f"idx = {idx}, final prob = {np.round(self.beliefs[idx]['prob'],2)}")
-
+        return
             # print(f"belief {self.beliefs[idx]['reward_dict']} likelihood is {self.beliefs[idx]['prob']}")
 
 
@@ -1262,87 +1383,32 @@ class Robot:
                         joint_action = {'robot': r_act, 'human': h_act}
 
                         expected_reward_sa = 0
-                        robot_only_reward = 0
-                        belief_added_reward = 0
 
                         for h_reward_idx in self.beliefs:
                             # print(f"h_reward_idx = {h_reward_idx} of total # beliefs {len(self.beliefs)}")
                             h_reward_hypothesis = self.beliefs[h_reward_idx]['reward_dict']
                             probability_of_hyp = self.beliefs[h_reward_idx]['prob']
+                            # print(f"probability_of_hyp = {probability_of_hyp}, h_reward_idx = {h_reward_idx}")
 
 
-                            possible_joint_action_to_prob = self.get_human_action_under_hypothesis(current_state_remaining_objects, h_reward_hypothesis)
-                            j_prob = possible_joint_action_to_prob[h_act]
+                            # possible_joint_action_to_prob = self.get_human_action_under_hypothesis(current_state_remaining_objects, h_reward_hypothesis)
+                            # j_prob = possible_joint_action_to_prob[h_act]
                             # if r_act is None:
                             #     j_prob = 1
                             # j_prob = possible_joint_action_to_prob[(r_act, h_act)]
-                            # j_prob = 1
+                            # h_prob = 1
 
                             next_state, (team_rew, robot_rew, human_rew), done = \
                                 self.step_given_state(current_state_remaining_objects, joint_action, h_reward_hypothesis)
 
-                            # if r_act is None:
-                            #     team_rew -= 2
 
-                            # if h_act is None:
-                            #     team_rew -= 2
-                            # #
-                            # print()
-                            # print("current_state_remaining_objects", current_state_remaining_objects)
-                            # print("joint_action", joint_action)
-                            # print(f"h_reward_hypothesis = {h_reward_hypothesis}")
-                            # print("probability_of_hyp", probability_of_hyp)
-                            # print("h_prob", h_prob)
-                            # print(f"team_rew = {team_rew}")
-                            # print(f"robot_rew = {robot_rew}")
-                            # print(f"human_rew = {human_rew}")
+                            expected_reward_sa += ((team_rew + robot_rew + human_rew) * probability_of_hyp)
 
-
-                            # r_sa = team_rew + robot_rew + human_rew
-                            #
-                            # s11 = self.state_to_idx[self.state_to_tuple(next_state)]
-                            # # r_sa += (self.gamma * vf[s11])
-                            # expected_reward_sa += (r_sa * probability_of_hyp * h_prob)
-
-                            # if r_act is None:
-                            #     robot_rew -= 1
-                            # elif current_state_remaining_objects[r_act] == 0:
-                            #     robot_rew -= 1
-                            # if h_act is None:
-                            #     robot_rew -= 1
-                            # elif current_state_remaining_objects[r_act] == 0:
-                            #     robot_rew -= 1
-
-                            expected_reward_sa += team_rew + (( robot_rew + human_rew) * probability_of_hyp * j_prob)
-
-                            # if r_act is None:
-                            #     expected_reward_sa -= 0
-                            # elif current_state_remaining_objects[r_act] == 0:
-                            #     expected_reward_sa -= 100
-
-                            robot_only_reward += (robot_rew * probability_of_hyp)
-                            belief_added_reward += ((team_rew + human_rew) * probability_of_hyp * j_prob)
-                            # expected_reward_sa
-                            # expected_reward_sa += r_sa
-                            # break
-
-                        # if expected_reward_sa == 0:
-                        #     expected_reward_sa = -2
-                        # next_state, (_, _, _), done = \
-                        #     self.step_given_state(current_state_remaining_objects, joint_action, self.ind_rew)
-                        # s11 = self.state_to_idx[self.state_to_tuple(next_state)]
-                        # print()
-                        # print("current_state_remaining_objects", current_state_remaining_objects)
-                        # print("joint_action", joint_action)
-                        # print(f"robot_only_reward = {robot_only_reward}")
-                        # print(f"belief_added_reward = {belief_added_reward}")
 
                         next_state, (_, _, _), done = \
                             self.step_given_state(current_state_remaining_objects, joint_action, self.ind_rew)
                         s11 = self.state_to_idx[self.state_to_tuple(next_state)]
-                        # if expected_reward_sa == 0:
-                        #     expected_reward_sa = -2
-                        #     expected_reward_sa += (self.gamma * vf[s11])
+
                         expected_reward_sa += (self.gamma * self.vf[s11])
                         self.Q[s, action_idx] = expected_reward_sa
 
@@ -1422,13 +1488,10 @@ class Robot:
                     for h_reward_idx in self.beliefs:
                         h_reward_hypothesis = self.beliefs[h_reward_idx]['reward_dict']
                         probability_of_hyp = self.beliefs[h_reward_idx]['prob']
-                        # probability_of_hyp = 1 / (1 + np.exp(-60 * (probability_of_hyp - self.confidence_threshold)))
-                        # if probability_of_hyp == 0:
-                        #     continue
 
-                        possible_joint_action_to_prob = self.get_human_action_under_hypothesis(
-                            current_state_remaining_objects, h_reward_hypothesis)
-                        j_prob = possible_joint_action_to_prob[h_act]
+                        # possible_joint_action_to_prob = self.get_human_action_under_hypothesis(
+                        #     current_state_remaining_objects, h_reward_hypothesis)
+                        # j_prob = possible_joint_action_to_prob[h_act]
                         #
                         # if r_act is None:
                         #     j_prob = 1
@@ -1437,44 +1500,18 @@ class Robot:
                         # h_prob = 1/(1+np.exp(-60*(h_prob - self.confidence_threshold)))
                         # if h_prob == 0:
                         #     continue
-                        sum_of_probs += probability_of_hyp * j_prob
+                        # sum_of_probs += probability_of_hyp * j_prob
 
                         next_state, (team_rew, robot_rew, human_rew), done = \
                             self.step_given_state(current_state_remaining_objects, joint_action, h_reward_hypothesis)
 
-                        # if r_act is None:
-                        #     team_rew -= 2
-                        # if h_act is None:
-                        #     team_rew -= 2
 
-                        # r_sa = team_rew + robot_rew + human_rew
-                        #
-                        # s11 = self.state_to_idx[self.state_to_tuple(next_state)]
-                        # r_sa += (self.gamma * vf[s11])
-                        # expected_reward_sa += (r_sa * probability_of_hyp * h_prob)
-                        # expected_reward_sa += (robot_rew * probability_of_hyp) + ((team_rew + human_rew) * probability_of_hyp * h_prob)
-                        # if r_act is None:
-                        #     robot_rew -= 100
-                        # elif current_state_remaining_objects[r_act] == 0:
-                        #     robot_rew -= 100
-
-                        # expected_reward_sa += ((team_rew + robot_rew + human_rew) * probability_of_hyp * j_prob)
-                        expected_reward_sa += team_rew + (( robot_rew + human_rew) * probability_of_hyp * j_prob)
+                        expected_reward_sa +=  (( team_rew + robot_rew + human_rew) * probability_of_hyp)
 
                         # if r_act is None:
                         #     expected_reward_sa -= 0
                         # elif current_state_remaining_objects[r_act] == 0:
                         #     expected_reward_sa -= 100
-
-                        robot_only_reward +=  (robot_rew * probability_of_hyp)
-                        belief_added_reward += ((team_rew + human_rew) * probability_of_hyp * j_prob)
-                        # expected_reward_sa += r_sa
-                        # break
-
-                    # if expected_reward_sa == 0:
-                    #     expected_reward_sa = -2
-
-
 
 
                     next_state, (_, _, _), done = \
@@ -2282,6 +2319,7 @@ class Robot:
 
         probability_of_hyp = 1
         h_reward_hypothesis = self.beliefs[most_probable_h_reward_idx]['reward_dict']
+        # print("h_reward_hypothesis", h_reward_hypothesis)
 
         for i in range(self.maxiter):
             # print("i=", i)
@@ -2327,8 +2365,8 @@ class Robot:
                         joint_action = {'robot': r_act, 'human': h_act}
 
                         h_prob = possible_h_action_to_prob[h_act]
-                        if r_act is None:
-                            h_prob = 1
+                        # if r_act is None:
+                        #     h_prob = 1
                         h_prob = 1
 
                         next_state, (team_rew, robot_rew, human_rew), done = \
@@ -2343,10 +2381,10 @@ class Robot:
                         expected_reward_sa = ((team_rew + robot_rew + human_rew) * probability_of_hyp * h_prob)
                         expected_reward_sa += (self.gamma * vf[s11])
 
-                        if r_act is None:
-                            expected_reward_sa -= 0
-                        elif current_state_remaining_objects[r_act] == 0:
-                            expected_reward_sa -= 100
+                        # if r_act is None:
+                        #     expected_reward_sa -= 0
+                        # elif current_state_remaining_objects[r_act] == 0:
+                        #     expected_reward_sa -= 100
                         # if expected_reward_sa == 0:
                         #     expected_reward_sa = -2
                         Q[s, action_idx] = expected_reward_sa
@@ -2401,8 +2439,8 @@ class Robot:
                     joint_action = {'robot': r_act, 'human': h_act}
 
                     h_prob = possible_h_action_to_prob[h_act]
-                    if r_act is None:
-                        h_prob = 1
+                    # if r_act is None:
+                    #     h_prob = 1
                     h_prob = 1
 
                     next_state, (team_rew, robot_rew, human_rew), done = \
@@ -2417,10 +2455,10 @@ class Robot:
 
                     # if expected_reward_sa == 0:
                     #     expected_reward_sa = -2
-                    if r_act is None:
-                        expected_reward_sa -= 0
-                    elif current_state_remaining_objects[r_act] == 0:
-                        expected_reward_sa -= 100
+                    # if r_act is None:
+                    #     expected_reward_sa -= 0
+                    # elif current_state_remaining_objects[r_act] == 0:
+                    #     expected_reward_sa -= 100
                     Q[s, action_idx] = expected_reward_sa
 
             pi[s] = np.argmax(Q[s, :], 0)
@@ -2902,6 +2940,7 @@ class Robot:
                 # print("Running collective_value_iteration")
                 # self.collective_value_iteration()
                 self.collective_policy_iteration()
+                # self.collective_value_iteration_argmax()
                 # self.collective_policy_iteration_w_h_alpha(h_alpha)
                 # self.collective_value_iteration_argmax()
                 # print("Done running collective_value_iteration")
@@ -2909,14 +2948,15 @@ class Robot:
                 # print("Running collective_value_iteration_with_true_human_reward")
                 # self.collective_value_iteration()
                 # self.collective_policy_iteration()
-                self.collective_value_iteration_argmax()
+                self.collective_policy_iteration()
+                # self.collective_value_iteration_argmax()
                 # self.collective_value_iteration_with_true_human_reward()
         else:
             self.greedy_value_iteration()
         return
 
 
-    def act(self, state, is_start=False):
+    def act_old(self, state, is_start=False):
         # max_key = max(self.beliefs, key=lambda k: self.beliefs[k]['prob'])
         # print("max prob belief", self.beliefs[max_key]['reward_dict'])
 
@@ -2945,66 +2985,133 @@ class Robot:
         return r_action
 
 
-    # def resolve_heavy_pickup(self, rh_action):
-    #     robot_rew, human_rew = -1, -1
-    #     if rh_action in self.state_remaining_objects and self.state_remaining_objects[rh_action] > 0:
-    #         self.state_remaining_objects[rh_action] -= 1
-    #         robot_rew = self.ind_rew[rh_action]
-    #         human_rew = self.human_rew[rh_action]
-    #
-    #     self.total_reward['team'] += (robot_rew + human_rew)
-    #     self.total_reward['robot'] += robot_rew
-    #     self.total_reward['human'] += human_rew
-    #     return (robot_rew + human_rew), robot_rew, human_rew
-    #
-    # def resolve_two_agents_same_item(self, robot_action, human_action):
-    #     (robot_action_color, robot_action_weight) = robot_action
-    #     (human_action_color, human_action_weight) = human_action
-    #     robot_rew, human_rew = -1, -1
-    #     if robot_action in self.state_remaining_objects:
-    #         if self.state_remaining_objects[robot_action] == 0:
-    #             robot_rew, human_rew = -1, -1
-    #         elif self.state_remaining_objects[robot_action] == 1:
-    #             self.state_remaining_objects[robot_action] -= 1
-    #             robot_rew = self.ind_rew[robot_action]
-    #             human_rew = self.human_rew[human_action]
-    #             pickup_agent = np.random.choice(['r', 'h'])
-    #             if pickup_agent == 'r':
-    #                 human_rew = -1
-    #             else:
-    #                 robot_rew = -1
-    #         else:
-    #             self.state_remaining_objects[robot_action] -= 1
-    #             self.state_remaining_objects[human_action] -= 1
-    #             robot_rew = self.ind_rew[robot_action]
-    #             human_rew = self.human_rew[human_action]
-    #
-    #     self.total_reward['team'] += (robot_rew + human_rew)
-    #     self.total_reward['robot'] += robot_rew
-    #     self.total_reward['human'] += human_rew
-    #
-    #     return (robot_rew + human_rew), robot_rew, human_rew
-    #
-    # def resolve_two_agents_diff_item(self, robot_action, human_action):
-    #
-    #     robot_rew, human_rew = -1, -1
-    #
-    #     if robot_action is not None and robot_action in self.state_remaining_objects:
-    #         (robot_action_color, robot_action_weight) = robot_action
-    #
-    #         if robot_action_weight == 0:
-    #             if self.state_remaining_objects[robot_action] > 0:
-    #                 self.state_remaining_objects[robot_action] -= 1
-    #                 robot_rew = self.ind_rew[robot_action]
-    #
-    #     if human_action is not None and human_action in self.state_remaining_objects:
-    #         (human_action_color, human_action_weight) = human_action
-    #         if human_action_weight == 0:
-    #             if self.state_remaining_objects[human_action] > 0:
-    #                 self.state_remaining_objects[human_action] -= 1
-    #                 human_rew = self.human_rew[human_action]
-    #
-    #     self.total_reward['team'] += (robot_rew + human_rew)
-    #     self.total_reward['robot'] += robot_rew
-    #     self.total_reward['human'] += human_rew
-    #     return (robot_rew + human_rew), robot_rew, human_rew
+
+    def take_explore_action(self, state, human_action_to_prob_for_state):
+        entropy_of_current_state = entropy([self.beliefs[i]['prob'] for i in self.beliefs], base=2)
+
+        robot_action_to_info_gain = {}
+        for robot_action in self.possible_actions:
+            robot_action_to_info_gain[robot_action] = 0
+            for human_action in self.possible_actions:
+                prob_a_h_t = human_action_to_prob_for_state[human_action]
+
+                joint_action = {'robot': robot_action, 'human': human_action}
+
+                next_state, (_, _, _), done = self.step_given_state(state, joint_action, self.ind_rew)
+                if done:
+                    break
+
+                human_action_to_prob = {}
+                for h_reward_idx in self.beliefs:
+                    # print(f"h_reward_idx = {h_reward_idx} of total # beliefs {len(self.beliefs)}")
+                    h_reward_hypothesis = self.beliefs[h_reward_idx]['reward_dict']
+                    probability_of_hyp = self.beliefs[h_reward_idx]['prob']
+
+                    possible_human_action_to_prob = self.get_human_action_under_hypothesis(next_state,
+                                                                                           h_reward_hypothesis)
+                    # print("possible_human_action_to_prob", possible_human_action_to_prob)
+                    # print("probability_of_hyp", probability_of_hyp)
+
+                    for h_act in possible_human_action_to_prob:
+                        # if h_act is None:
+                        #     h_prob = 0
+                        # else:
+                        h_prob = possible_human_action_to_prob[h_act]
+                        if h_act not in human_action_to_prob:
+                            human_action_to_prob[h_act] = 0
+
+                        human_action_to_prob[h_act] += (probability_of_hyp * h_prob)
+
+                for human_action_next_state in self.possible_actions:
+                    prob_a_h_t1 = human_action_to_prob[human_action_next_state]
+                    updated_belief = self.hypothesize_updated_belief(next_state, human_action_next_state)
+                    entropy_of_current_state = entropy([updated_belief[i]['prob'] for i in updated_belief], base=2)
+                    robot_action_to_info_gain[robot_action] += prob_a_h_t * prob_a_h_t1 * entropy_of_current_state
+
+        max_info_gain = -10000
+        best_action = None
+        for robot_action in robot_action_to_info_gain:
+            robot_action_to_info_gain[robot_action] = entropy_of_current_state - robot_action_to_info_gain[robot_action]
+            if robot_action_to_info_gain[robot_action] >= max_info_gain:
+                max_info_gain = robot_action_to_info_gain[robot_action]
+                best_action = robot_action
+
+        print("robot_action_to_info_gain", robot_action_to_info_gain)
+        # max_key = max(robot_action_to_info_gain, key=lambda k: robot_action_to_info_gain[k])
+        return best_action
+
+
+
+    def act(self, state, is_start=False, round_no=0):
+        # max_key = max(self.beliefs, key=lambda k: self.beliefs[k]['prob'])
+        # print("max prob belief", self.beliefs[max_key]['reward_dict'])
+
+        current_state = copy.deepcopy(state)
+        # print(f"current_state = {current_state}")
+        current_state_tup = self.state_to_tuple(current_state)
+
+        state_idx = self.state_to_idx[current_state_tup]
+
+        action_distribution = self.policy[state_idx]
+
+        # for a_idx in self.idx_to_action:
+        #     print(f"action {self.idx_to_action[a_idx]} --> value = {action_distribution[a_idx]}")
+
+        # print("action_distribution", action_distribution)
+        # action = np.random.choice(np.flatnonzero(action_distribution == action_distribution.max()))
+        action = np.argmax(action_distribution)
+        # action = np.flatnonzero(action_distribution == action_distribution.max())[0]
+        action = self.idx_to_action[action]
+
+        # print("idx_to_action = ", self.idx_to_action)
+        # print("action_distribution = ", action_distribution)
+        # print("action", action)
+
+        r_action = action[0]
+
+        human_action_to_prob = {}
+        for h_reward_idx in self.beliefs:
+            # print(f"h_reward_idx = {h_reward_idx} of total # beliefs {len(self.beliefs)}")
+            h_reward_hypothesis = self.beliefs[h_reward_idx]['reward_dict']
+            probability_of_hyp = self.beliefs[h_reward_idx]['prob']
+
+            possible_human_action_to_prob = self.get_human_action_under_hypothesis(current_state, h_reward_hypothesis)
+            # print("possible_human_action_to_prob", possible_human_action_to_prob)
+            # print("probability_of_hyp", probability_of_hyp)
+
+            for h_act in possible_human_action_to_prob:
+                # if h_act is None:
+                #     h_prob = 0
+                # else:
+                h_prob = possible_human_action_to_prob[h_act]
+                if h_act not in human_action_to_prob:
+                    human_action_to_prob[h_act] = 0
+
+                human_action_to_prob[h_act] += (probability_of_hyp * h_prob)
+
+        single_action_distribution = {}
+        for i in range(len(action_distribution)):
+            q_value_for_joint = action_distribution[i]
+            j_action = self.idx_to_action[i]
+            single_r_action = j_action[0]
+            single_h_action = j_action[1]
+            prob_human_act = human_action_to_prob[single_h_action]
+            if single_r_action not in single_action_distribution:
+                single_action_distribution[single_r_action] = 0
+            single_action_distribution[single_r_action] += (q_value_for_joint * prob_human_act)
+
+        r_action = max(single_action_distribution.items(), key=operator.itemgetter(1))[0]
+
+        p_explore = np.random.uniform(0,1)
+        total_rounds = 5
+        explore_alpha = max(0.0, -(0.5/total_rounds) * round_no + 0.5)
+        print("originally proposed action = ", r_action)
+        # if p_explore < explore_alpha:
+        #     r_action = self.take_explore_action(state, human_action_to_prob)
+        #     print("Exploratory action = ", r_action)
+            # self.take_explore_action_entropy_based(state)
+
+
+        # print("single_action_distribution", single_action_distribution)
+        # print("r_action", r_action)
+        return r_action
