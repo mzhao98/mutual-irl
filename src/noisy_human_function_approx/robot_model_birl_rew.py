@@ -352,10 +352,10 @@ class Robot:
 
             # print("sum_Z", sum_Z)
             # human_only_rew_for_action /= sum_Z
-            if human_only_rew_for_action == max(all_possible_rews):
-                human_only_rew_for_action = self.update_threshold
-            else:
-                human_only_rew_for_action = 1 - self.update_threshold
+            # if human_only_rew_for_action == max(all_possible_rews):
+            #     human_only_rew_for_action = self.update_threshold
+            # else:
+            #     human_only_rew_for_action = 1 - self.update_threshold
 
             # print(f"idx = {idx}: {h_reward_hypothesis}")
             # print("human_only_rew_for_action", human_only_rew_for_action)
@@ -3069,7 +3069,7 @@ class Robot:
 
 
 
-    def act(self, state, is_start=False, round_no=0):
+    def act(self, state, is_start=False, round_no=0, use_exploration=False):
         # max_key = max(self.beliefs, key=lambda k: self.beliefs[k]['prob'])
         # print("max prob belief", self.beliefs[max_key]['reward_dict'])
 
@@ -3127,12 +3127,40 @@ class Robot:
                 single_action_distribution[single_r_action] = 0
             single_action_distribution[single_r_action] += (q_value_for_joint * prob_human_act)
 
-        r_action = max(single_action_distribution.items(), key=operator.itemgetter(1))[0]
+        # print("single_action_distribution", single_action_distribution)
 
+        best_r_action = None
+        max_prob = -100000
+        # print("starting best action", best_r_action)
+        for candidate_r_action in self.possible_actions:
+            # print("candidate_r_action = ", candidate_r_action)
+            if candidate_r_action not in single_action_distribution:
+                # print("continuing")
+                continue
+
+            # print("single_action_distribution[candidate_r_action]", single_action_distribution[candidate_r_action])
+            # print("max_prob", max_prob)
+            candidate_prob = np.round(single_action_distribution[candidate_r_action], 3)
+            if candidate_prob > max_prob:
+                max_prob = candidate_prob
+                best_r_action = candidate_r_action
+                # best_r_action = r_action
+            # print("current best action", best_r_action)
+
+        # if r_action != best_r_action:
+            # print("best_r_action", best_r_action)
+            # print("r_action", r_action)
+            # print("single_action_distribution", single_action_distribution)
+        r_action = best_r_action
+
+        # r_action = max(single_action_distribution.items(), key=operator.itemgetter(1))[0]
         p_explore = np.random.uniform(0,1)
-        total_rounds = 5
+        total_rounds = 4
         explore_alpha = max(0.0, -(1.0/total_rounds) * round_no + 1.0)
-        print("originally proposed action = ", r_action)
+        # # print("originally proposed action = ", r_action)
+        if use_exploration:
+            if p_explore < explore_alpha:
+                r_action = self.take_explore_action(state, human_action_to_prob)
         # if p_explore < explore_alpha:
         #     r_action = self.take_explore_action(state, human_action_to_prob)
         #     print("Exploratory action = ", r_action)

@@ -29,6 +29,10 @@ RED = 2
 YELLOW = 3
 COLOR_LIST = [BLUE, GREEN, RED, YELLOW]
 
+DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+# DEVICE = 'cuda'
+print("Device: ", DEVICE)
+
 class Suboptimal_Collaborative_Human:
     def __init__(self, ind_rew, true_robot_rew, starting_state, h_alpha=0.0, h_deg_collab=0.5):
         self.ind_rew = ind_rew
@@ -587,7 +591,7 @@ class Robot:
         # self.lstm_Xshape = X_train_tensors_final.size(0)
 
 
-        self.num_epochs = 1001  # 1000 epochs
+        self.num_epochs = 300  # 1000 epochs
         self.learning_rate = 0.0001  # 0.001 lr
 
         self.input_size = X_train_tensors.shape[1]  # number of features
@@ -610,19 +614,28 @@ class Robot:
     def train_lstm(self, X_train_tensors_final, y_train_tensors):
         # Train LSTM on synthetic data for warm-start
         print("X_train_tensors_final", X_train_tensors_final.shape)
+        X_train_tensors_final = X_train_tensors_final.to(DEVICE)
+        y_train_tensors = y_train_tensors.to(DEVICE)
+        # print("DEVICE", DEVICE)
+        # print("X_train_tensors_final.is_cuda", X_train_tensors_final.is_cuda)
+        # pdb.set_trace()
+        self.human_lstm.to(DEVICE)
         self.human_lstm.train()
         losses = []
 
         for epoch in range(self.num_epochs):
 
             h_n = Variable(
-                torch.zeros(self.num_layers, 1, self.hidden_size))  # hidden state
+                torch.zeros(self.num_layers, 1, self.hidden_size)).to(DEVICE)  # hidden state
             c_n = Variable(
-                torch.zeros(self.num_layers, 1, self.hidden_size))  # internal state
+                torch.zeros(self.num_layers, 1, self.hidden_size)).to(DEVICE)  # internal state
             total_loss = 0
             for i in range(X_train_tensors_final.shape[0]):
                 x_input = X_train_tensors_final[i:i+1, :, :]
                 y_input = y_train_tensors[i:i + 1]
+
+                # x_input.to(DEVICE)
+                # y_input.to(DEVICE)
                 # print("x_input", x_input.shape)
                 # print("y_input", y_input.shape)
                 outputs, (h_n, c_n) = self.human_lstm.forward(x_input, h_n, c_n)  # forward pass
@@ -633,8 +646,10 @@ class Robot:
                 #     print("outputs", outputs)
                 #     print("y_train_tensors", y_train_tensors)
                 loss = self.criterion(outputs, y_input.long())
-                losses.append(loss.detach().numpy())
-                total_loss += loss.detach().numpy()
+
+                loss_val = loss.detach().cpu().numpy()
+                losses.append(loss_val)
+                total_loss += loss_val
 
                 loss.backward(retain_graph=True)  # calculates the loss of the loss function
 
@@ -651,25 +666,28 @@ class Robot:
         self.human_lstm.eval()
         n_accurate = 0
         n_total = 0
-        true_y = y_train_tensors.detach().numpy()
+        true_y = y_train_tensors.detach().cpu().numpy()
 
         h_n = Variable(
-            torch.zeros(self.num_layers, 1, self.hidden_size))  # hidden state
+            torch.zeros(self.num_layers, 1, self.hidden_size)).to(DEVICE)  # hidden state
         c_n = Variable(
-            torch.zeros(self.num_layers, 1, self.hidden_size))  # internal state
+            torch.zeros(self.num_layers, 1, self.hidden_size)).to(DEVICE)  # internal state
         total_loss = 0
-        for i in range(X_train_tensors_final.shape[0]):
-            x_input = X_train_tensors_final[i:i + 1, :, :]
-            y_input = y_train_tensors[i:i + 1]
-            # print("x_input", x_input.shape)
-            # print("y_input", y_input.shape)
-            outputs, (h_n, c_n) = self.human_lstm.forward(x_input, h_n, c_n)  # forward pass
-            outputs = outputs.detach().numpy()
-            pred_idx = np.argmax(outputs[0])
-            true_idx = int(true_y[i])
-            if pred_idx == true_idx:
-                n_accurate += 1
-            n_total += 1
+        with torch.no_grad():
+            for i in range(X_train_tensors_final.shape[0]):
+                x_input = X_train_tensors_final[i:i + 1, :, :]
+                y_input = y_train_tensors[i:i + 1]
+                # x_input.to(DEVICE)
+                # y_input.to(DEVICE)
+                # print("x_input", x_input.shape)
+                # print("y_input", y_input.shape)
+                outputs, (h_n, c_n) = self.human_lstm.forward(x_input, h_n, c_n)  # forward pass
+                outputs = outputs.detach().cpu().numpy()
+                pred_idx = np.argmax(outputs[0])
+                true_idx = int(true_y[i])
+                if pred_idx == true_idx:
+                    n_accurate += 1
+                n_total += 1
 
         # self.human_lstm.eval()
         # outputs = self.human_lstm.forward(X_train_tensors_final)  # forward pass
@@ -2085,7 +2103,7 @@ class Robot:
         return
 
 
-    def act(self, state, is_start=False, round_no=0):
+    def act_old(self, state, is_start=False, round_no=0):
         # max_key = max(self.beliefs, key=lambda k: self.beliefs[k]['prob'])
         # print("max prob belief", self.beliefs[max_key]['reward_dict'])
 
@@ -2126,13 +2144,13 @@ class Robot:
         # outputs, (hn, cn) = self.human_lstm.forward(X_train_tensors_final)  # forward pass
         outputs = outputs.detach().numpy()[0]
         pred_idx = np.argmax(outputs)
-        print("ROBOT: I predict the human will take " + str(self.num_to_action[pred_idx]) + "with probability " + str(outputs[pred_idx]))
+        # print("ROBOT: I predict the human will take " + str(self.num_to_action[pred_idx]) + "with probability " + str(outputs[pred_idx]))
 
-        print("\n\n Other Objects")
-        for i in range(len(outputs)):
-            print(
-                "ROBOT: I predict the human will take " + str(self.num_to_action[i]) + "with probability " + str(
-                    outputs[i]))
+        # print("\n\n Other Objects")
+        # for i in range(len(outputs)):
+        #     print(
+        #         "ROBOT: I predict the human will take " + str(self.num_to_action[i]) + "with probability " + str(
+        #             outputs[i]))
 
         # for a_idx in self.idx_to_action:
         #     print(f"action {self.idx_to_action[a_idx]} --> value = {action_distribution[a_idx]}")
@@ -2166,6 +2184,128 @@ class Robot:
 
         self.prev_own_action = r_action
 
+        return r_action
+
+    def act(self, state, is_start=False, round_no=0, use_exploration=False):
+        # max_key = max(self.beliefs, key=lambda k: self.beliefs[k]['prob'])
+        # print("max prob belief", self.beliefs[max_key]['reward_dict'])
+
+        current_state = copy.deepcopy(state)
+        # print(f"current_state = {current_state}")
+        current_state_tup = self.state_to_tuple(current_state)
+
+        state_idx = self.state_to_idx[current_state_tup]
+
+        action_distribution = self.policy[state_idx]
+
+        add_x = [(state[obj_type] if obj_type in state else 0) for obj_type in self.list_of_objects_from_start]
+        one_hot_robot_act = [0 for _ in range(self.number_of_actions)]
+        one_hot_robot_act[self.action_to_num[self.prev_own_action]] = 1
+        add_x.extend(one_hot_robot_act)
+
+        X_train_tensors = Variable(torch.Tensor(np.array([add_x])))
+        X_train_tensors_final = torch.reshape(X_train_tensors,
+                                              (X_train_tensors.shape[0], 1, X_train_tensors.shape[1])).to(DEVICE)
+
+        # h_n = Variable(
+        #     torch.zeros(self.num_layers, self.lstm_Xshape, self.hidden_size))  # hidden state
+        # c_n = Variable(
+        #     torch.zeros(self.num_layers, self.lstm_Xshape, self.hidden_size))  # internal state
+        self.human_lstm.to(DEVICE)
+        if self.h_n is None:
+            self.h_n = Variable(
+                torch.zeros(self.num_layers, X_train_tensors_final.size(0), self.hidden_size)).to(DEVICE)  # hidden state
+            self.c_n = Variable(
+                torch.zeros(self.num_layers, X_train_tensors_final.size(0), self.hidden_size)).to(DEVICE)  # internal state
+
+        if is_start:
+            self.h_n = Variable(
+                torch.zeros(self.num_layers, X_train_tensors_final.size(0), self.hidden_size)).to(DEVICE)  # hidden state
+            self.c_n = Variable(
+                torch.zeros(self.num_layers, X_train_tensors_final.size(0), self.hidden_size)).to(DEVICE)  # internal state
+
+        outputs, (self.h_n, self.c_n) = self.human_lstm.forward(X_train_tensors_final, self.h_n,
+                                                                self.c_n)  # forward pass
+
+        # outputs, (hn, cn) = self.human_lstm.forward(X_train_tensors_final)  # forward pass
+        outputs = outputs.detach().cpu().numpy()[0]
+        pred_idx = np.argmax(outputs)
+        # print("ROBOT: I predict the human will take " + str(self.num_to_action[pred_idx]) + "with probability " + str(
+        #     outputs[pred_idx]))
+
+        # print("\n\n Other Objects")
+        # for i in range(len(outputs)):
+        #     print(
+        #         "ROBOT: I predict the human will take " + str(self.num_to_action[i]) + "with probability " + str(
+        #             outputs[i]))
+
+        # for a_idx in self.idx_to_action:
+        #     print(f"action {self.idx_to_action[a_idx]} --> value = {action_distribution[a_idx]}")
+
+        # print("action_distribution", action_distribution)
+        # action = np.random.choice(np.flatnonzero(action_distribution == action_distribution.max()))
+        action = np.argmax(action_distribution)
+        # action = np.flatnonzero(action_distribution == action_distribution.max())[0]
+        action = self.idx_to_action[action]
+
+        # print("idx_to_action = ", self.idx_to_action)
+        # print("action_distribution = ", action_distribution)
+        # print("action", action)
+
+        # r_action = action[0]
+
+        single_action_distribution = {}
+        for i in range(len(action_distribution)):
+            q_value_for_joint = action_distribution[i]
+            j_action = self.idx_to_action[i]
+            single_r_action = j_action[0]
+            single_h_action = j_action[1]
+            h_action_number = self.action_to_num[single_h_action]
+            prob_human_act = outputs[h_action_number]
+            if single_r_action not in single_action_distribution:
+                single_action_distribution[single_r_action] = 0
+            single_action_distribution[single_r_action] += (q_value_for_joint * prob_human_act)
+
+        best_r_action = None
+        max_prob = -100000
+        # print("starting best action", best_r_action)
+        for candidate_r_action in self.possible_actions:
+            # print("candidate_r_action = ", candidate_r_action)
+            if candidate_r_action not in single_action_distribution:
+                # print("continuing")
+                continue
+
+            # print("single_action_distribution[candidate_r_action]", single_action_distribution[candidate_r_action])
+            # print("max_prob", max_prob)
+            candidate_prob = np.round(single_action_distribution[candidate_r_action], 3)
+            if candidate_prob > max_prob:
+                max_prob = candidate_prob
+                best_r_action = candidate_r_action
+                # best_r_action = r_action
+            # print("current best action", best_r_action)
+
+        # if r_action != best_r_action:
+            # print("best_r_action", best_r_action)
+            # print("r_action", r_action)
+            # print("single_action_distribution", single_action_distribution)
+        r_action = best_r_action
+
+        # r_action = max(single_action_distribution.items(), key=operator.itemgetter(1))[0]
+        p_explore = np.random.uniform(0,1)
+        total_rounds = 4
+        explore_alpha = max(0.0, -(1.0/total_rounds) * round_no + 1.0)
+        # # print("originally proposed action = ", r_action)
+        if use_exploration:
+            if p_explore < explore_alpha:
+                r_action = self.take_explore_action(state, human_action_to_prob)
+        # if p_explore < explore_alpha:
+        #     r_action = self.take_explore_action(state, human_action_to_prob)
+        #     print("Exploratory action = ", r_action)
+            # self.take_explore_action_entropy_based(state)
+
+
+        # print("single_action_distribution", single_action_distribution)
+        # print("r_action", r_action)
         return r_action
 
 

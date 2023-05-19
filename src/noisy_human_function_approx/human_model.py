@@ -372,10 +372,12 @@ class Suboptimal_Collaborative_Human:
         #     # h_action = best_human_act[np.random.choice(range(len(best_human_act)))]
         #     h_action = best_human_act[0]
         #
+        # print("best h_action", h_action)
         other_actions.remove(h_action)
         r = np.random.uniform(0, 1)
         if r < self.h_alpha:
             if len(other_actions) > 0:
+                # print("Using random")
                 h_action = other_actions[np.random.choice(np.arange(len(other_actions)))]
 
         return h_action
