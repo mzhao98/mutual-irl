@@ -673,14 +673,14 @@ class Robot:
                         human_rew += 0
                     elif state_remaining_objects[robot_action] == 1:
                         state_remaining_objects[robot_action] -= 1
-                        # human_rew += human_reward[human_action]
-                        pickup_agent = np.random.choice(['r', 'h'])
-                        if pickup_agent == 'r':
-                            robot_rew += self.ind_rew[robot_action]
-                            # human_rew = -1
-                        else:
-                            # robot_rew = -1
-                            human_rew += human_reward[human_action]
+                        human_rew += human_reward[human_action]
+                        # pickup_agent = np.random.choice(['r', 'h'])
+                        # if pickup_agent == 'r':
+                        #     robot_rew += self.ind_rew[robot_action]
+                        #     # human_rew = -1
+                        # else:
+                        #     # robot_rew = -1
+                        #     human_rew += human_reward[human_action]
                     else:
                         state_remaining_objects[robot_action] -= 1
                         state_remaining_objects[human_action] -= 1
@@ -898,7 +898,7 @@ class Robot:
         return possible_h_action_to_prob
 
     def get_human_action_under_collaborative_hypothesis(self, current_state_remaining_objects, human_reward):
-        # state_remaining_objects = copy.deepcopy(current_state_remaining_objects)
+        state_remaining_objects = copy.deepcopy(current_state_remaining_objects)
         best_human_act = []
         max_reward = -100
         h_action = None
@@ -932,12 +932,9 @@ class Robot:
         best_reward_for_human_action = {}
 
         for joint_act in self.possible_joint_actions:
-            state_remaining_objects = copy.deepcopy(current_state_remaining_objects)
-            human_r = 0
-            robot_r = 0
             candidate_r_act = joint_act['robot']
             candidate_h_act = joint_act['human']
-            joint_act = {'robot': candidate_r_act, 'human': candidate_h_act}
+            # joint_act = {'robot': candidate_r_act, 'human': candidate_h_act}
             # print("joint_act", joint_act)
             # print("candidate_h_act", candidate_h_act)
             # _, (team_r, robot_r, human_r), _ = self.human_step_given_state(current_state_remaining_objects, joint_act, human_reward)
@@ -946,24 +943,19 @@ class Robot:
                     state_remaining_objects[candidate_h_act] -= 1
                     human_r = human_reward[candidate_h_act]
                     robot_r = self.ind_rew[candidate_r_act]
-                    # print(f"1: {human_r}, {robot_r}")
 
                 if candidate_h_act[1] == 0 and state_remaining_objects[candidate_h_act]>0:
                     state_remaining_objects[candidate_h_act] -= 1
                     human_r = human_reward[candidate_h_act]
-                    # print(f"2: {human_r}, {robot_r}")
 
             if candidate_r_act is not None:
                 if candidate_r_act[1] == 0 and state_remaining_objects[candidate_r_act] > 0:
                     state_remaining_objects[candidate_r_act] -= 1
                     robot_r = self.ind_rew[candidate_r_act]
-                    # print(f"3:  {robot_r}")
 
-            # print(f"1: {human_r}, {robot_r}")
+            # print("candidate_rew", candidate_rew)
             team_r = -2
             candidate_rew = team_r + robot_r + human_r
-            # print("candidate_rew", candidate_rew)
-            # pdb.set_trace()
             if candidate_h_act is not None:
                 # if candidate_rew == max_reward:
                 #     if candidate_h_act not in best_human_act:
@@ -996,8 +988,6 @@ class Robot:
                 possible_h_action_to_prob[candidate_h_act] = 1
             else:
                 possible_h_action_to_prob[candidate_h_act] = 0
-
-        # pdb.set_trace()
         # possible_j_action_to_prob = {}
         # for joint_act in self.possible_joint_actions:
         #     candidate_r_act = joint_act['robot']
@@ -3022,45 +3012,38 @@ class Robot:
 
                     possible_human_action_to_prob = self.get_human_action_under_hypothesis(next_state,
                                                                                            h_reward_hypothesis)
-                    print("possible_human_action_to_prob", possible_human_action_to_prob)
-                    print("probability_of_hyp", probability_of_hyp)
+                    # print("possible_human_action_to_prob", possible_human_action_to_prob)
+                    # print("probability_of_hyp", probability_of_hyp)
 
                     for h_act in possible_human_action_to_prob:
 
                         # else:
                         h_prob = possible_human_action_to_prob[h_act]
-                        if h_act is None:
+                        # if h_act is None:
+                        #     h_prob = 0
+                        if h_act not in human_action_to_prob:
                             # h_prob = 0
                             human_action_to_prob[h_act] = 0
-                        else:
-                            if h_act not in human_action_to_prob:
-                                # h_prob = 0
-                                human_action_to_prob[h_act] = 0
 
-                            human_action_to_prob[h_act] += (probability_of_hyp * h_prob)
+                        human_action_to_prob[h_act] += (probability_of_hyp * h_prob)
 
-                # print("human_action_to_prob", human_action_to_prob)
-                # pdb.set_trace()
                 best_entropy_of_next_state = None
                 best_info_gain = -10000000
                 best_human_action = None
                 for human_action_next_state in self.possible_actions:
-                    if human_action_next_state is not None and next_state[human_action_next_state] > 0:
-                        # prob_a_h_t1 = human_action_to_prob[human_action_next_state]
-                        updated_belief = self.hypothesize_updated_belief(next_state, human_action_next_state)
-                        entropy_of_next_state = entropy([updated_belief[i]['prob'] for i in updated_belief], base=2)
-                        info_gain = entropy_of_current_state - entropy_of_next_state
-                        if info_gain > best_info_gain:
-                            best_info_gain = info_gain
-                            best_human_action = human_action_next_state
-                            best_entropy_of_next_state = entropy_of_next_state
-
+                    # prob_a_h_t1 = human_action_to_prob[human_action_next_state]
+                    updated_belief = self.hypothesize_updated_belief(next_state, human_action_next_state)
+                    entropy_of_next_state = entropy([updated_belief[i]['prob'] for i in updated_belief], base=2)
+                    info_gain = entropy_of_current_state - entropy_of_next_state
+                    if info_gain > best_info_gain:
+                        best_info_gain = info_gain
+                        best_human_action = human_action_next_state
+                        best_entropy_of_next_state = entropy_of_next_state
 
                 if human_action is None:
                     prob_a_h_t = 0
                 # print("human action and prob", (human_action, prob_a_h_t))
                 robot_action_to_info_gain[robot_action] += prob_a_h_t * best_entropy_of_next_state
-                # pdb.set_trace()
 
         max_info_gain = -10000
         best_action = None
@@ -3079,7 +3062,6 @@ class Robot:
                 best_actions_list.append(robot_action)
 
         # print("robot_action_to_info_gain", robot_action_to_info_gain)
-        # print("robot_action_to_info_gain", robot_action_to_info_gain)
         best_action_idx = np.random.choice(np.arange(len(best_actions_list)))
         best_action = best_actions_list[best_action_idx]
         # max_key = max(robot_action_to_info_gain, key=lambda k: robot_action_to_info_gain[k])
@@ -3087,7 +3069,7 @@ class Robot:
 
 
 
-    def act(self, state, is_start=False, round_no=0, use_exploration=False, boltzman=False):
+    def act(self, state, is_start=False, round_no=0, use_exploration=False):
         # max_key = max(self.beliefs, key=lambda k: self.beliefs[k]['prob'])
         # print("max prob belief", self.beliefs[max_key]['reward_dict'])
 
@@ -3134,8 +3116,6 @@ class Robot:
 
                 human_action_to_prob[h_act] += (probability_of_hyp * h_prob)
 
-
-
         single_action_distribution = {}
         for i in range(len(action_distribution)):
             q_value_for_joint = action_distribution[i]
@@ -3147,74 +3127,43 @@ class Robot:
                 single_action_distribution[single_r_action] = 0
             single_action_distribution[single_r_action] += (q_value_for_joint * prob_human_act)
 
-        if boltzman:
-            own_beta = 2
-            Z = 0
-            for single_r_action in single_action_distribution:
-                # print("single_action_distribution[single_r_action]", single_action_distribution[single_r_action])
+        # print("single_action_distribution", single_action_distribution)
 
-                single_action_distribution[single_r_action] = np.round(
-                    np.exp(single_action_distribution[single_r_action]/100 * own_beta), 5)
-                Z += single_action_distribution[single_r_action]
+        best_r_action = None
+        max_prob = -100000
+        # print("starting best action", best_r_action)
+        for candidate_r_action in self.possible_actions:
+            # print("candidate_r_action = ", candidate_r_action)
+            if candidate_r_action not in single_action_distribution:
+                # print("continuing")
+                continue
 
-            if Z == 0:
-                for single_r_action in single_action_distribution:
-                    single_action_distribution[single_r_action] = 1 / len(single_action_distribution)
-            else:
-                is_nan_exists = False
-                for single_r_action in single_action_distribution:
-                    single_action_distribution[single_r_action] = single_action_distribution[single_r_action] / Z
+            # print("single_action_distribution[candidate_r_action]", single_action_distribution[candidate_r_action])
+            # print("max_prob", max_prob)
+            candidate_prob = np.round(single_action_distribution[candidate_r_action], 3)
+            if candidate_prob > max_prob:
+                max_prob = candidate_prob
+                best_r_action = candidate_r_action
+                # best_r_action = r_action
+            # print("current best action", best_r_action)
 
-                    if np.isnan(single_action_distribution[single_r_action]):
-                        is_nan_exists = True
-
-                    if is_nan_exists:
-                        print("IS NAN EXISTS")
-                        for single_r_action in single_action_distribution:
-                            single_action_distribution[single_r_action] = 1 / len(single_action_distribution)
-
+        # if r_action != best_r_action:
+            # print("best_r_action", best_r_action)
+            # print("r_action", r_action)
             # print("single_action_distribution", single_action_distribution)
-
-            r_action_keys = list(single_action_distribution.keys())
-            probs = list(single_action_distribution.values())
-            r_action = r_action_keys[np.random.choice(np.arange(len(r_action_keys)), p=probs)]
-
-        else:
-            best_r_action = None
-            max_prob = -100000
-            # print("starting best action", best_r_action)
-            for candidate_r_action in self.possible_actions:
-                # print("candidate_r_action = ", candidate_r_action)
-                if candidate_r_action not in single_action_distribution:
-                    # print("continuing")
-                    continue
-
-                # print("single_action_distribution[candidate_r_action]", single_action_distribution[candidate_r_action])
-                # print("max_prob", max_prob)
-                candidate_prob = np.round(single_action_distribution[candidate_r_action], 3)
-                if candidate_prob > max_prob:
-                    max_prob = candidate_prob
-                    best_r_action = candidate_r_action
-                    # best_r_action = r_action
-                # print("current best action", best_r_action)
-
-            # if r_action != best_r_action:
-                # print("best_r_action", best_r_action)
-                # print("r_action", r_action)
-                # print("single_action_distribution", single_action_distribution)
-            r_action = best_r_action
+        r_action = best_r_action
 
         # r_action = max(single_action_distribution.items(), key=operator.itemgetter(1))[0]
         p_explore = np.random.uniform(0,1)
         total_rounds = 4
         explore_alpha = max(0.0, -(1.0/total_rounds) * round_no + 1.0)
-        print("originally proposed action = ", r_action)
+        # # print("originally proposed action = ", r_action)
         if use_exploration:
             if p_explore < explore_alpha:
                 r_action = self.take_explore_action(state, human_action_to_prob)
         # if p_explore < explore_alpha:
         #     r_action = self.take_explore_action(state, human_action_to_prob)
-                print("Exploratory action = ", r_action)
+        #     print("Exploratory action = ", r_action)
             # self.take_explore_action_entropy_based(state)
 
 

@@ -9,8 +9,8 @@ import matplotlib.pyplot as plt
 import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
-from robot_model_birl_rew import Robot
-# from robot_model_fixed_lstm import Robot
+# from robot_model_birl_rew import Robot
+from robot_model_fixed_lstm import Robot
 # from robot_model_fcn import Robot
 # from robot_model_birl_prob_plan_out import Robot
 # from robot_model_lstm_rew import Robot
@@ -632,11 +632,11 @@ class Simultaneous_Cleanup():
                 iters += 1
                 current_state = copy.deepcopy(self.state_remaining_objects)
 
-                robot_action = self.robot.act(current_state, is_start=is_start, round_no=round_no, use_exploration=use_exploration, boltzman=True)
+                robot_action = self.robot.act(current_state, is_start=is_start, round_no=round_no, use_exploration=use_exploration)
                 # robot_action = self.robot.act_old(current_state)
                 is_start = False
                 # print("current_state for human acting", current_state)
-                human_action = self.human.act(current_state, round_no)
+                human_action = self.human.act(current_state)
 
                 if hasattr(self.robot, 'human_lstm'):
                     # print("LSTM ROBOT")
@@ -1051,10 +1051,8 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
         random_h_alpha = h_alpha
         random_h_deg_collab = 0.5
     else:
-        # random_h_alpha = np.random.uniform(0.1, 1.0)
-        # random_h_deg_collab = np.random.uniform(0.1, 1.0)
         random_h_alpha = np.random.uniform(0.1, 1.0)
-        random_h_deg_collab = 0.5
+        random_h_deg_collab = np.random.uniform(0.1, 1.0)
 
     experiment_config['random_h_alpha'] = random_h_alpha
     experiment_config['random_h_deg_collab'] = random_h_deg_collab
@@ -2524,7 +2522,7 @@ def run_experiment_random_human_without_multiprocess():
 if __name__ == "__main__":
     # np.random.seed(0)
     global_seed = 0
-    experiment_number = '1_birl_boltz_hr'
+    experiment_number = '1_lstm'
     task_type = 'cirl_w_hard_rc' # ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']
     # exploration_type = 'wo_expl'
     replan_type = 'w_replan' # ['wo_replan', 'w_replan']
@@ -2532,7 +2530,7 @@ if __name__ == "__main__":
     num_exps = 100
     for exploration_type in ['wo_expl', 'w_expl']:
         for random_human in [True, False]:
-            # run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
+    # run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
             run_experiment_without_multiprocess(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
 
     # run_experiment_without_multiprocess()
