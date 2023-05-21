@@ -5,7 +5,7 @@ import operator
 import copy
 import networkx as nx
 import random
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
@@ -16,8 +16,8 @@ from robot_model_birl_rew import Robot
 # from robot_model_lstm_rew import Robot
 from human_model import Greedy_Human, Collaborative_Human, Suboptimal_Collaborative_Human
 # import seaborn as sns
-import matplotlib.cm as cm
-import matplotlib.animation as animation
+# import matplotlib.cm as cm
+# import matplotlib.animation as animation
 from scipy.stats import sem
 import pickle
 import json
@@ -608,10 +608,10 @@ class Simultaneous_Cleanup():
             robot_only_reward = 0
             iters = 0
 
-            if plot:
-                plt.figure()
-                plt.ylim(0, 3)
-                plt.yticks([1, 2], ['H', 'R'], color='black', fontweight='bold', fontsize='17')
+            # if plot:
+            #     plt.figure()
+            #     plt.ylim(0, 3)
+            #     plt.yticks([1, 2], ['H', 'R'], color='black', fontweight='bold', fontsize='17')
 
             # plt.xlim(0, 1)
             # Human y val = 1
@@ -632,7 +632,7 @@ class Simultaneous_Cleanup():
                 iters += 1
                 current_state = copy.deepcopy(self.state_remaining_objects)
 
-                robot_action = self.robot.act(current_state, is_start=is_start, round_no=round_no, use_exploration=use_exploration, boltzman=True)
+                robot_action = self.robot.act(current_state, is_start=is_start, round_no=round_no, use_exploration=use_exploration, boltzman=False)
                 # robot_action = self.robot.act_old(current_state)
                 is_start = False
                 # print("current_state for human acting", current_state)
@@ -731,110 +731,110 @@ class Simultaneous_Cleanup():
             reward_for_all_rounds.append(total_reward)
             game_results[round_no]['final_reward'] = total_reward
 
-            if plot:
-                plt.title(f"Game Replay Round {round_no}")
-                plt.savefig(f"images/game_replay_r{round_no}.png")
-                plt.show()
+            # if plot:
+            #     plt.title(f"Game Replay Round {round_no}")
+            #     plt.savefig(f"images/game_replay_r{round_no}.png")
+            #     plt.show()
 
-                plt.figure()
-                plt.plot(range(len(human_rewards_over_round)), human_rewards_over_round, color='g', label='human',
-                         linewidth=7.0, alpha=0.5)
-                plt.plot(range(len(robot_rewards_over_round)), robot_rewards_over_round, color='m', label='robot',
-                         linewidth=2.0, alpha=1)
-                plt.plot(range(len(team_rewards_over_round)), team_rewards_over_round, color='k', label='team')
-                plt.plot(range(len(total_rewards_over_round)), total_rewards_over_round, color='b', label='total')
-                plt.legend()
-                plt.xlabel("Timestep")
-                plt.ylabel("Reward")
-                plt.title(f"Reward Earned in Round {round_no}")
-                plt.savefig(f"images/round_reward_r{round_no}.png")
-                plt.show()
+            #     plt.figure()
+            #     plt.plot(range(len(human_rewards_over_round)), human_rewards_over_round, color='g', label='human',
+            #              linewidth=7.0, alpha=0.5)
+            #     plt.plot(range(len(robot_rewards_over_round)), robot_rewards_over_round, color='m', label='robot',
+            #              linewidth=2.0, alpha=1)
+            #     plt.plot(range(len(team_rewards_over_round)), team_rewards_over_round, color='k', label='team')
+            #     plt.plot(range(len(total_rewards_over_round)), total_rewards_over_round, color='b', label='total')
+            #     plt.legend()
+            #     plt.xlabel("Timestep")
+            #     plt.ylabel("Reward")
+            #     plt.title(f"Reward Earned in Round {round_no}")
+            #     plt.savefig(f"images/round_reward_r{round_no}.png")
+            #     plt.show()
 
-                true_rew_belief = self.robot.history_of_robot_beliefs_of_true_human_rew
-                plt.plot(range(len(true_rew_belief)), true_rew_belief)
-                plt.xlabel("Iteration")
-                plt.ylabel("Weight")
-                plt.title(f"Belief of True Reward in Round {round_no}")
-                plt.savefig(f"images/belief_history_r{round_no}.png")
-                plt.show()
+            #     true_rew_belief = self.robot.history_of_robot_beliefs_of_true_human_rew
+            #     plt.plot(range(len(true_rew_belief)), true_rew_belief)
+            #     plt.xlabel("Iteration")
+            #     plt.ylabel("Weight")
+            #     plt.title(f"Belief of True Reward in Round {round_no}")
+            #     plt.savefig(f"images/belief_history_r{round_no}.png")
+            #     plt.show()
 
-                plt.figure()
-                item_weights = {}
-                for i in range(len(self.robot.history_of_robot_beliefs_of_max_human_rew)):
-                    reward_dict = self.robot.history_of_robot_beliefs_of_max_human_rew[i]
-                    for object in reward_dict:
-                        if object not in item_weights:
-                            item_weights[object] = []
-                        item_weights[object].append(reward_dict[object])
+            #     plt.figure()
+            #     item_weights = {}
+            #     for i in range(len(self.robot.history_of_robot_beliefs_of_max_human_rew)):
+            #         reward_dict = self.robot.history_of_robot_beliefs_of_max_human_rew[i]
+            #         for object in reward_dict:
+            #             if object not in item_weights:
+            #                 item_weights[object] = []
+            #             item_weights[object].append(reward_dict[object])
 
-                for object in item_weights:
-                    weights = item_weights[object]
-                    obj_color = object[0]
-                    obj_size = object[1]
+            #     for object in item_weights:
+            #         weights = item_weights[object]
+            #         obj_color = object[0]
+            #         obj_size = object[1]
 
-                    line = 3.0
-                    alpha = 1.0
+            #         line = 3.0
+            #         alpha = 1.0
 
-                    if obj_size == 1:
-                        line = 7.0
-                        alpha = 0.3
+            #         if obj_size == 1:
+            #             line = 7.0
+            #             alpha = 0.3
 
-                    color = COLOR_TO_TEXT[obj_color]
+            #         color = COLOR_TO_TEXT[obj_color]
 
-                    plt.plot(range(len(weights)), weights, color=color, label=object,
-                             linewidth=line, alpha=alpha)
+            #         plt.plot(range(len(weights)), weights, color=color, label=object,
+            #                  linewidth=line, alpha=alpha)
 
-                plt.xlabel("Iteration")
-                plt.ylabel("Weight")
-                plt.title(f"Belief of Max Reward in Round {round_no}")
-                plt.savefig(f"images/max_reward_beliefs_r{round_no}.png")
-                plt.show()
+            #     plt.xlabel("Iteration")
+            #     plt.ylabel("Weight")
+            #     plt.title(f"Belief of Max Reward in Round {round_no}")
+            #     plt.savefig(f"images/max_reward_beliefs_r{round_no}.png")
+            #     plt.show()
 
-                plt.figure()
-                for object in self.robot.ind_rew:
-                    weights = [self.robot.ind_rew[object]] * num_rounds
-                    obj_color = object[0]
-                    obj_size = object[1]
+            #     plt.figure()
+            #     for object in self.robot.ind_rew:
+            #         weights = [self.robot.ind_rew[object]] * num_rounds
+            #         obj_color = object[0]
+            #         obj_size = object[1]
 
-                    line = 3.0
-                    alpha = 0.6
+            #         line = 3.0
+            #         alpha = 0.6
 
-                    if obj_size == 1:
-                        line = 9.0
-                        alpha = 0.2
+            #         if obj_size == 1:
+            #             line = 9.0
+            #             alpha = 0.2
 
-                    color = COLOR_TO_TEXT[obj_color]
+            #         color = COLOR_TO_TEXT[obj_color]
 
-                    plt.plot(range(len(weights)), weights, color=color, label=object,
-                             linewidth=line, alpha=alpha)
-                plt.xlabel("Iteration")
-                plt.ylabel("Weight")
-                plt.title(f"Robot True Reward in Round {round_no}")
-                plt.savefig(f"images/true_robot_reward_r{round_no}.png")
-                plt.show()
+            #         plt.plot(range(len(weights)), weights, color=color, label=object,
+            #                  linewidth=line, alpha=alpha)
+            #     plt.xlabel("Iteration")
+            #     plt.ylabel("Weight")
+            #     plt.title(f"Robot True Reward in Round {round_no}")
+            #     plt.savefig(f"images/true_robot_reward_r{round_no}.png")
+            #     plt.show()
 
-                plt.figure()
-                for object in self.human.ind_rew:
-                    weights = [self.human.ind_rew[object]] * num_rounds
-                    obj_color = object[0]
-                    obj_size = object[1]
+            #     plt.figure()
+            #     for object in self.human.ind_rew:
+            #         weights = [self.human.ind_rew[object]] * num_rounds
+            #         obj_color = object[0]
+            #         obj_size = object[1]
 
-                    line = 3.0
-                    alpha = 1.0
+            #         line = 3.0
+            #         alpha = 1.0
 
-                    if obj_size == 1:
-                        line = 7.0
-                        alpha = 0.3
+            #         if obj_size == 1:
+            #             line = 7.0
+            #             alpha = 0.3
 
-                    color = COLOR_TO_TEXT[obj_color]
+            #         color = COLOR_TO_TEXT[obj_color]
 
-                    plt.plot(range(len(weights)), weights, color=color, label=object,
-                             linewidth=line, alpha=alpha)
-                plt.xlabel("Iteration")
-                plt.ylabel("Weight")
-                plt.title(f"Human True Reward in Round {round_no}")
-                plt.savefig(f"images/true_human_reward_r{round_no}.png")
-                plt.show()
+            #         plt.plot(range(len(weights)), weights, color=color, label=object,
+            #                  linewidth=line, alpha=alpha)
+            #     plt.xlabel("Iteration")
+            #     plt.ylabel("Weight")
+            #     plt.title(f"Human True Reward in Round {round_no}")
+            #     plt.savefig(f"images/true_human_reward_r{round_no}.png")
+                # plt.show()
 
         max_prob_idx = 0
         second_prob_idx = 0
@@ -1387,94 +1387,94 @@ def run_experiment(global_seed, experiment_number, task_type, exploration_type, 
 
     # Plot both
     # fig, ax = plt.subplots(figsize=(5, 5))
-    plt.title('CIRL', fontsize=16)
-    plt.plot(X, Y, label='Diff PDF')
-    plt.plot(X, CY, 'r--', label='Diff CDF')
-    plt.xlabel("% of Opt CVI - % of Opt StdVI")
+    # plt.title('CIRL', fontsize=16)
+    # plt.plot(X, Y, label='Diff PDF')
+    # plt.plot(X, CY, 'r--', label='Diff CDF')
+    # plt.xlabel("% of Opt CVI - % of Opt StdVI")
 
-    plt.legend()
-    plt.savefig(f"results/{experiment_name}/images/cirl_{num_exps}_{experiment_name}_{r_h_str}_cdf.png")
-    # plt.show()
-    plt.close()
+    # plt.legend()
+    # plt.savefig(f"results/{experiment_name}/images/cirl_{num_exps}_{experiment_name}_{r_h_str}_cdf.png")
+    # # plt.show()
+    # plt.close()
 
-    data = list([cvi_percents, stdvi_percents])
-    fig, ax = plt.subplots(figsize=(5, 5))
-    # build a violin plot
-    ax.violinplot(data, showmeans=False, showmedians=True)
-    # add title and axis labels
-    ax.set_title('CIRL w RC', fontsize=16)
-    ax.set_xlabel('Robot Type', fontsize=14)
-    ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
-    # add x-tick labels
-    xticklabels = ['CVI robot', 'StdVI robot']
-    ax.set_xticks([1, 2])
-    ax.set_xticklabels(xticklabels)
+    # data = list([cvi_percents, stdvi_percents])
+    # fig, ax = plt.subplots(figsize=(5, 5))
+    # # build a violin plot
+    # ax.violinplot(data, showmeans=False, showmedians=True)
+    # # add title and axis labels
+    # ax.set_title('CIRL w RC', fontsize=16)
+    # ax.set_xlabel('Robot Type', fontsize=14)
+    # ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
+    # # add x-tick labels
+    # xticklabels = ['CVI robot', 'StdVI robot']
+    # ax.set_xticks([1, 2])
+    # ax.set_xticklabels(xticklabels)
 
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    # add horizontal grid lines
-    ax.yaxis.grid(True)
-    # show the plot
-    fig.tight_layout()
-    plt.savefig(f"results/{experiment_name}/images/cirl_{num_exps}_{experiment_name}_{r_h_str}_violin.png")
-    # plt.show()
-    plt.close()
+    # ax.spines['top'].set_visible(False)
+    # ax.spines['right'].set_visible(False)
+    # # add horizontal grid lines
+    # ax.yaxis.grid(True)
+    # # show the plot
+    # fig.tight_layout()
+    # plt.savefig(f"results/{experiment_name}/images/cirl_{num_exps}_{experiment_name}_{r_h_str}_violin.png")
+    # # plt.show()
+    # plt.close()
 
-    # collab_means = [np.round(np.mean(cvi_percents[1]), 2), np.round(np.mean(stdvi_percents[1]), 2)]
-    # collab_stds = [np.round(np.std(cvi_percents[1]), 2), np.round(np.std(stdvi_percents[1]), 2)]
+    # # collab_means = [np.round(np.mean(cvi_percents[1]), 2), np.round(np.mean(stdvi_percents[1]), 2)]
+    # # collab_stds = [np.round(np.std(cvi_percents[1]), 2), np.round(np.std(stdvi_percents[1]), 2)]
 
-    ind = np.arange(len(teamrew_means))  # the x locations for the groups
-    width = 0.2  # the width of the bars
+    # ind = np.arange(len(teamrew_means))  # the x locations for the groups
+    # width = 0.2  # the width of the bars
 
-    fig, ax = plt.subplots(figsize=(5, 5))
-    rects1 = ax.bar(ind - width, teamrew_means, width, yerr=teamrew_stds,
-                    label='Team Reward', capsize=10)
-    # rects2 = ax.bar(ind, humanrew_means, width, yerr=humanrew_stds,
-    #                 label='Human Reward', capsize=10)
-    # rects3 = ax.bar(ind + width, robotrew_means, width, yerr=robotrew_stds,
-    #                 label='Robot Reward', capsize=10)
+    # fig, ax = plt.subplots(figsize=(5, 5))
+    # rects1 = ax.bar(ind - width, teamrew_means, width, yerr=teamrew_stds,
+    #                 label='Team Reward', capsize=10)
+    # # rects2 = ax.bar(ind, humanrew_means, width, yerr=humanrew_stds,
+    # #                 label='Human Reward', capsize=10)
+    # # rects3 = ax.bar(ind + width, robotrew_means, width, yerr=robotrew_stds,
+    # #                 label='Robot Reward', capsize=10)
 
-    # Add some text for labels, title and custom x-axis tick labels, etc.
-    ax.set_xlabel('Robot Type', fontsize=14)
-    ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
-    # ax.set_ylim(-0.00, 1.5)
+    # # Add some text for labels, title and custom x-axis tick labels, etc.
+    # ax.set_xlabel('Robot Type', fontsize=14)
+    # ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
+    # # ax.set_ylim(-0.00, 1.5)
 
-    plt.yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], fontsize=14)
-    # plt.xticks([])
+    # plt.yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], fontsize=14)
+    # # plt.xticks([])
 
-    ax.set_title('CIRL', fontsize=16)
-    ax.set_xticks(ind, fontsize=14)
-    ax.set_xticklabels(('CVI robot', 'StdVI robot'), fontsize=13)
-    ax.legend(fontsize=13)
+    # ax.set_title('CIRL', fontsize=16)
+    # ax.set_xticks(ind, fontsize=14)
+    # ax.set_xticklabels(('CVI robot', 'StdVI robot'), fontsize=13)
+    # ax.legend(fontsize=13)
 
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    # ax.spines['bottom'].set_visible(False)
-    # ax.spines['left'].set_visible(False)
+    # ax.spines['top'].set_visible(False)
+    # ax.spines['right'].set_visible(False)
+    # # ax.spines['bottom'].set_visible(False)
+    # # ax.spines['left'].set_visible(False)
 
-    autolabel(ax, rects1, "left")
-    # autolabel(ax, rects2, "right")
-    # autolabel(ax, rects3, "right")
+    # autolabel(ax, rects1, "left")
+    # # autolabel(ax, rects2, "right")
+    # # autolabel(ax, rects3, "right")
 
-    fig.tight_layout()
-    plt.savefig(f"results/{experiment_name}/images/cirl_{num_exps}_{experiment_name}_{r_h_str}_bar.png")
-    # plt.show()
-    plt.close()
+    # fig.tight_layout()
+    # plt.savefig(f"results/{experiment_name}/images/cirl_{num_exps}_{experiment_name}_{r_h_str}_bar.png")
+    # # plt.show()
+    # plt.close()
 
-    X = [i for i in np.arange(6)]
-    Y = np.array([np.mean(round_to_percent_rewards[i]) for i in round_to_percent_rewards])
-    Ystd = np.array([np.std(round_to_percent_rewards[i]) for i in round_to_percent_rewards])
-    plt.title('Interactive IRL w RC', fontsize=16)
-    plt.plot(X, Y, 'k-')
-    # plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#1B2ACC', facecolor='#1B2ACC')
-    plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#FFD580', facecolor='#FFD580')
-    plt.ylabel("Percent of Optimal")
-    plt.xlabel("Episode")
+    # X = [i for i in np.arange(6)]
+    # Y = np.array([np.mean(round_to_percent_rewards[i]) for i in round_to_percent_rewards])
+    # Ystd = np.array([np.std(round_to_percent_rewards[i]) for i in round_to_percent_rewards])
+    # plt.title('Interactive IRL w RC', fontsize=16)
+    # plt.plot(X, Y, 'k-')
+    # # plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#1B2ACC', facecolor='#1B2ACC')
+    # plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#FFD580', facecolor='#FFD580')
+    # plt.ylabel("Percent of Optimal")
+    # plt.xlabel("Episode")
 
-    plt.legend()
-    plt.savefig(f"results/{experiment_name}/images/cirl_{num_exps}_{experiment_name}_{r_h_str}_by_round_Std.png")
-    # plt.show()
-    plt.close()
+    # plt.legend()
+    # plt.savefig(f"results/{experiment_name}/images/cirl_{num_exps}_{experiment_name}_{r_h_str}_by_round_Std.png")
+    # # plt.show()
+    # plt.close()
 
     # if len(timestep_to_accuracy_list) > 0:
     #     X = [t for t in timestep_to_accuracy_list]
@@ -1935,79 +1935,79 @@ def run_experiment_without_multiprocess_old():
 
     # Plot both
     # fig, ax = plt.subplots(figsize=(5, 5))
-    plt.title('CIRL', fontsize=16)
-    plt.plot(X, Y, label='Diff PDF')
-    plt.plot(X, CY, 'r--', label='Diff CDF')
-    plt.xlabel("% of Opt CVI - % of Opt StdVI")
+    # plt.title('CIRL', fontsize=16)
+    # plt.plot(X, Y, label='Diff PDF')
+    # plt.plot(X, CY, 'r--', label='Diff CDF')
+    # plt.xlabel("% of Opt CVI - % of Opt StdVI")
 
-    plt.legend()
-    plt.savefig(f"images/cirl_{num_exps}_{ROBOT_TYPE}_{r_h_str}_cdf.png")
-    # plt.show()
-    plt.close()
+    # plt.legend()
+    # plt.savefig(f"images/cirl_{num_exps}_{ROBOT_TYPE}_{r_h_str}_cdf.png")
+    # # plt.show()
+    # plt.close()
 
-    data = list([cvi_percents, stdvi_percents])
-    fig, ax = plt.subplots(figsize=(5, 5))
-    # build a violin plot
-    ax.violinplot(data, showmeans=False, showmedians=True)
-    # add title and axis labels
-    ax.set_title('CIRL w RC', fontsize=16)
-    ax.set_xlabel('Robot Type', fontsize=14)
-    ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
-    # add x-tick labels
-    xticklabels = ['CVI robot', 'StdVI robot']
-    ax.set_xticks([1, 2])
-    ax.set_xticklabels(xticklabels)
+    # data = list([cvi_percents, stdvi_percents])
+    # fig, ax = plt.subplots(figsize=(5, 5))
+    # # build a violin plot
+    # ax.violinplot(data, showmeans=False, showmedians=True)
+    # # add title and axis labels
+    # ax.set_title('CIRL w RC', fontsize=16)
+    # ax.set_xlabel('Robot Type', fontsize=14)
+    # ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
+    # # add x-tick labels
+    # xticklabels = ['CVI robot', 'StdVI robot']
+    # ax.set_xticks([1, 2])
+    # ax.set_xticklabels(xticklabels)
 
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    # add horizontal grid lines
-    ax.yaxis.grid(True)
-    # show the plot
-    fig.tight_layout()
-    plt.savefig(f"images/cirl_{num_exps}_{ROBOT_TYPE}_{r_h_str}_violin.png")
-    # plt.show()
-    plt.close()
+    # ax.spines['top'].set_visible(False)
+    # ax.spines['right'].set_visible(False)
+    # # add horizontal grid lines
+    # ax.yaxis.grid(True)
+    # # show the plot
+    # fig.tight_layout()
+    # plt.savefig(f"images/cirl_{num_exps}_{ROBOT_TYPE}_{r_h_str}_violin.png")
+    # # plt.show()
+    # plt.close()
 
-    # collab_means = [np.round(np.mean(cvi_percents[1]), 2), np.round(np.mean(stdvi_percents[1]), 2)]
-    # collab_stds = [np.round(np.std(cvi_percents[1]), 2), np.round(np.std(stdvi_percents[1]), 2)]
+    # # collab_means = [np.round(np.mean(cvi_percents[1]), 2), np.round(np.mean(stdvi_percents[1]), 2)]
+    # # collab_stds = [np.round(np.std(cvi_percents[1]), 2), np.round(np.std(stdvi_percents[1]), 2)]
 
-    ind = np.arange(len(teamrew_means))  # the x locations for the groups
-    width = 0.2  # the width of the bars
+    # ind = np.arange(len(teamrew_means))  # the x locations for the groups
+    # width = 0.2  # the width of the bars
 
-    fig, ax = plt.subplots(figsize=(5, 5))
-    rects1 = ax.bar(ind - width, teamrew_means, width, yerr=teamrew_stds,
-                    label='Team Reward', capsize=10)
-    # rects2 = ax.bar(ind, humanrew_means, width, yerr=humanrew_stds,
-    #                 label='Human Reward', capsize=10)
-    # rects3 = ax.bar(ind + width, robotrew_means, width, yerr=robotrew_stds,
-    #                 label='Robot Reward', capsize=10)
+    # fig, ax = plt.subplots(figsize=(5, 5))
+    # rects1 = ax.bar(ind - width, teamrew_means, width, yerr=teamrew_stds,
+    #                 label='Team Reward', capsize=10)
+    # # rects2 = ax.bar(ind, humanrew_means, width, yerr=humanrew_stds,
+    # #                 label='Human Reward', capsize=10)
+    # # rects3 = ax.bar(ind + width, robotrew_means, width, yerr=robotrew_stds,
+    # #                 label='Robot Reward', capsize=10)
 
-    # Add some text for labels, title and custom x-axis tick labels, etc.
-    ax.set_xlabel('Robot Type', fontsize=14)
-    ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
-    # ax.set_ylim(-0.00, 1.5)
+    # # Add some text for labels, title and custom x-axis tick labels, etc.
+    # ax.set_xlabel('Robot Type', fontsize=14)
+    # ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
+    # # ax.set_ylim(-0.00, 1.5)
 
-    plt.yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], fontsize=14)
-    # plt.xticks([])
+    # plt.yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], fontsize=14)
+    # # plt.xticks([])
 
-    ax.set_title('CIRL', fontsize=16)
-    ax.set_xticks(ind, fontsize=14)
-    ax.set_xticklabels(('CVI robot', 'StdVI robot'), fontsize=13)
-    ax.legend(fontsize=13)
+    # ax.set_title('CIRL', fontsize=16)
+    # ax.set_xticks(ind, fontsize=14)
+    # ax.set_xticklabels(('CVI robot', 'StdVI robot'), fontsize=13)
+    # ax.legend(fontsize=13)
 
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    # ax.spines['bottom'].set_visible(False)
-    # ax.spines['left'].set_visible(False)
+    # ax.spines['top'].set_visible(False)
+    # ax.spines['right'].set_visible(False)
+    # # ax.spines['bottom'].set_visible(False)
+    # # ax.spines['left'].set_visible(False)
 
-    autolabel(ax, rects1, "left")
-    # autolabel(ax, rects2, "right")
-    # autolabel(ax, rects3, "right")
+    # autolabel(ax, rects1, "left")
+    # # autolabel(ax, rects2, "right")
+    # # autolabel(ax, rects3, "right")
 
-    fig.tight_layout()
-    plt.savefig(f"images/cirl_{num_exps}_{ROBOT_TYPE}_{r_h_str}_bar.png")
-    # plt.show()
-    plt.close()
+    # fig.tight_layout()
+    # plt.savefig(f"images/cirl_{num_exps}_{ROBOT_TYPE}_{r_h_str}_bar.png")
+    # # plt.show()
+    # plt.close()
 
     X = [i for i in np.arange(6)]
     Y = np.array([np.mean(round_to_percent_rewards[i]) for i in round_to_percent_rewards])
@@ -2415,93 +2415,93 @@ def run_experiment_random_human_without_multiprocess():
 
     # Plot both
     # fig, ax = plt.subplots(figsize=(5, 5))
-    plt.title('CIRL', fontsize=16)
-    plt.plot(X, Y, label='Diff PDF')
-    plt.plot(X, CY, 'r--', label='Diff CDF')
-    plt.xlabel("% of Opt CVI - % of Opt StdVI")
+    # plt.title('CIRL', fontsize=16)
+    # plt.plot(X, Y, label='Diff PDF')
+    # plt.plot(X, CY, 'r--', label='Diff CDF')
+    # plt.xlabel("% of Opt CVI - % of Opt StdVI")
 
-    plt.legend()
-    plt.savefig(f"images/cirl_w_rc_{num_exps}_cdf.png")
-    plt.show()
-    plt.close()
+    # plt.legend()
+    # plt.savefig(f"images/cirl_w_rc_{num_exps}_cdf.png")
+    # plt.show()
+    # plt.close()
 
-    data = list([cvi_percents, stdvi_percents])
-    fig, ax = plt.subplots(figsize=(5, 5))
-    # build a violin plot
-    ax.violinplot(data, showmeans=False, showmedians=True)
-    # add title and axis labels
-    ax.set_title('CIRL w RC', fontsize=16)
-    ax.set_xlabel('Robot Type', fontsize=14)
-    ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
-    # add x-tick labels
-    xticklabels = ['CVI robot', 'StdVI robot']
-    ax.set_xticks([1, 2])
-    ax.set_xticklabels(xticklabels)
+    # data = list([cvi_percents, stdvi_percents])
+    # fig, ax = plt.subplots(figsize=(5, 5))
+    # # build a violin plot
+    # ax.violinplot(data, showmeans=False, showmedians=True)
+    # # add title and axis labels
+    # ax.set_title('CIRL w RC', fontsize=16)
+    # ax.set_xlabel('Robot Type', fontsize=14)
+    # ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
+    # # add x-tick labels
+    # xticklabels = ['CVI robot', 'StdVI robot']
+    # ax.set_xticks([1, 2])
+    # ax.set_xticklabels(xticklabels)
 
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    # add horizontal grid lines
-    ax.yaxis.grid(True)
-    # show the plot
-    fig.tight_layout()
-    plt.savefig(f"images/cirl_w_rc_{num_exps}_violin.png")
-    plt.show()
-    plt.close()
+    # ax.spines['top'].set_visible(False)
+    # ax.spines['right'].set_visible(False)
+    # # add horizontal grid lines
+    # ax.yaxis.grid(True)
+    # # show the plot
+    # fig.tight_layout()
+    # plt.savefig(f"images/cirl_w_rc_{num_exps}_violin.png")
+    # plt.show()
+    # plt.close()
 
-    # collab_means = [np.round(np.mean(cvi_percents[1]), 2), np.round(np.mean(stdvi_percents[1]), 2)]
-    # collab_stds = [np.round(np.std(cvi_percents[1]), 2), np.round(np.std(stdvi_percents[1]), 2)]
+    # # collab_means = [np.round(np.mean(cvi_percents[1]), 2), np.round(np.mean(stdvi_percents[1]), 2)]
+    # # collab_stds = [np.round(np.std(cvi_percents[1]), 2), np.round(np.std(stdvi_percents[1]), 2)]
 
-    ind = np.arange(len(teamrew_means))  # the x locations for the groups
-    width = 0.2  # the width of the bars
+    # ind = np.arange(len(teamrew_means))  # the x locations for the groups
+    # width = 0.2  # the width of the bars
 
-    fig, ax = plt.subplots(figsize=(5, 5))
-    rects1 = ax.bar(ind - width, teamrew_means, width, yerr=teamrew_stds,
-                    label='Team Reward', capsize=10)
-    # rects2 = ax.bar(ind, humanrew_means, width, yerr=humanrew_stds,
-    #                 label='Human Reward', capsize=10)
-    # rects3 = ax.bar(ind + width, robotrew_means, width, yerr=robotrew_stds,
-    #                 label='Robot Reward', capsize=10)
+    # fig, ax = plt.subplots(figsize=(5, 5))
+    # rects1 = ax.bar(ind - width, teamrew_means, width, yerr=teamrew_stds,
+    #                 label='Team Reward', capsize=10)
+    # # rects2 = ax.bar(ind, humanrew_means, width, yerr=humanrew_stds,
+    # #                 label='Human Reward', capsize=10)
+    # # rects3 = ax.bar(ind + width, robotrew_means, width, yerr=robotrew_stds,
+    # #                 label='Robot Reward', capsize=10)
 
-    # Add some text for labels, title and custom x-axis tick labels, etc.
-    ax.set_xlabel('Robot Type', fontsize=14)
-    ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
-    # ax.set_ylim(-0.00, 1.5)
+    # # Add some text for labels, title and custom x-axis tick labels, etc.
+    # ax.set_xlabel('Robot Type', fontsize=14)
+    # ax.set_ylabel('Percent of Optimal Reward', fontsize=14)
+    # # ax.set_ylim(-0.00, 1.5)
 
-    plt.yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], fontsize=14)
-    # plt.xticks([])
+    # plt.yticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0], [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], fontsize=14)
+    # # plt.xticks([])
 
-    ax.set_title('CIRL', fontsize=16)
-    ax.set_xticks(ind, fontsize=14)
-    ax.set_xticklabels(('CVI robot', 'StdVI robot'), fontsize=13)
-    ax.legend(fontsize=13)
+    # ax.set_title('CIRL', fontsize=16)
+    # ax.set_xticks(ind, fontsize=14)
+    # ax.set_xticklabels(('CVI robot', 'StdVI robot'), fontsize=13)
+    # ax.legend(fontsize=13)
 
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    # ax.spines['bottom'].set_visible(False)
-    # ax.spines['left'].set_visible(False)
+    # ax.spines['top'].set_visible(False)
+    # ax.spines['right'].set_visible(False)
+    # # ax.spines['bottom'].set_visible(False)
+    # # ax.spines['left'].set_visible(False)
 
-    autolabel(ax, rects1, "left")
-    # autolabel(ax, rects2, "right")
-    # autolabel(ax, rects3, "right")
+    # autolabel(ax, rects1, "left")
+    # # autolabel(ax, rects2, "right")
+    # # autolabel(ax, rects3, "right")
 
-    fig.tight_layout()
-    plt.savefig(f"images/cirl_w_rc_{num_exps}_bar.png")
-    plt.show()
-    plt.close()
+    # fig.tight_layout()
+    # plt.savefig(f"images/cirl_w_rc_{num_exps}_bar.png")
+    # plt.show()
+    # plt.close()
 
-    X = [i for i in np.arange(6)]
-    Y = np.array([np.mean(round_to_percent_rewards[i]) for i in round_to_percent_rewards])
-    Ystd = np.array([np.std(round_to_percent_rewards[i]) for i in round_to_percent_rewards])
-    plt.title('Interactive IRL w RC', fontsize=16)
-    plt.plot(X, Y, 'k-')
-    # plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#1B2ACC', facecolor='#1B2ACC')
-    plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#FFD580', facecolor='#FFD580')
-    plt.ylabel("Percent of Optimal")
-    plt.xlabel("Episode")
+    # X = [i for i in np.arange(6)]
+    # Y = np.array([np.mean(round_to_percent_rewards[i]) for i in round_to_percent_rewards])
+    # Ystd = np.array([np.std(round_to_percent_rewards[i]) for i in round_to_percent_rewards])
+    # plt.title('Interactive IRL w RC', fontsize=16)
+    # plt.plot(X, Y, 'k-')
+    # # plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#1B2ACC', facecolor='#1B2ACC')
+    # plt.fill_between(X, Y - Ystd, Y + Ystd, alpha=0.5, edgecolor='#FFD580', facecolor='#FFD580')
+    # plt.ylabel("Percent of Optimal")
+    # plt.xlabel("Episode")
 
-    plt.legend()
-    plt.savefig(f"images/cirl_w_rc_{num_exps}_by_round_Std.png")
-    plt.show()
+    # plt.legend()
+    # plt.savefig(f"images/cirl_w_rc_{num_exps}_by_round_Std.png")
+    # plt.show()
 
     # print()
     # print("times_max_prob_is_correct = ", times_max_prob_is_correct)
@@ -2522,9 +2522,9 @@ def run_experiment_random_human_without_multiprocess():
 
 
 if __name__ == "__main__":
-    # np.random.seed(0)
+    np.random.seed(0)
     global_seed = 0
-    experiment_number = '1_birl_boltz_hr'
+    experiment_number = '1_birl_boltz_h-only'
     task_type = 'cirl_w_hard_rc' # ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']
     # exploration_type = 'wo_expl'
     replan_type = 'w_replan' # ['wo_replan', 'w_replan']
@@ -2532,8 +2532,8 @@ if __name__ == "__main__":
     num_exps = 100
     for exploration_type in ['wo_expl', 'w_expl']:
         for random_human in [True, False]:
-            # run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
-            run_experiment_without_multiprocess(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
+            run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
+            # run_experiment_without_multiprocess(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
 
     # run_experiment_without_multiprocess()
     # run_experiment_random_human_without_multiprocess()

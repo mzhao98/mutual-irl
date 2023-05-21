@@ -5,7 +5,7 @@ import operator
 import copy
 import networkx as nx
 import random
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
@@ -57,7 +57,7 @@ class Robot:
         self.human_gamma = 0.0001
         self.maxiter = 100
         self.small_maxiter = 10
-        self.beta = 15
+        self.beta = 0.9
         self.confidence_threshold = 0.6
         self.update_threshold = update_threshold
 
@@ -279,8 +279,8 @@ class Robot:
 
             # print(f"belief {self.beliefs[idx]['reward_dict']} likelihood is {self.beliefs[idx]['prob']}")
 
-    def hypothesize_updated_belief(self, current_state, human_action):
-        updated_beliefs = copy.deepcopy(self.beliefs)
+    def hypothesize_updated_belief(self, beliefs, current_state, human_action):
+        updated_beliefs = copy.deepcopy(beliefs)
         normalize_Z = 0
 
         dict_prob_obs_given_theta = {}
@@ -352,10 +352,10 @@ class Robot:
 
             # print("sum_Z", sum_Z)
             # human_only_rew_for_action /= sum_Z
-            # if human_only_rew_for_action == max(all_possible_rews):
-            #     human_only_rew_for_action = self.update_threshold
-            # else:
-            #     human_only_rew_for_action = 1 - self.update_threshold
+            if human_only_rew_for_action == max(all_possible_rews):
+                human_only_rew_for_action = self.update_threshold
+            else:
+                human_only_rew_for_action = 1 - self.update_threshold
 
             # print(f"idx = {idx}: {h_reward_hypothesis}")
             # print("human_only_rew_for_action", human_only_rew_for_action)
@@ -3014,6 +3014,8 @@ class Robot:
                 if done:
                     break
 
+                
+
                 human_action_to_prob = {}
                 for h_reward_idx in self.beliefs:
                     # print(f"h_reward_idx = {h_reward_idx} of total # beliefs {len(self.beliefs)}")
@@ -3022,8 +3024,8 @@ class Robot:
 
                     possible_human_action_to_prob = self.get_human_action_under_hypothesis(next_state,
                                                                                            h_reward_hypothesis)
-                    print("possible_human_action_to_prob", possible_human_action_to_prob)
-                    print("probability_of_hyp", probability_of_hyp)
+                    # print("possible_human_action_to_prob", possible_human_action_to_prob)
+                    # print("probability_of_hyp", probability_of_hyp)
 
                     for h_act in possible_human_action_to_prob:
 
@@ -3041,24 +3043,29 @@ class Robot:
 
                 # print("human_action_to_prob", human_action_to_prob)
                 # pdb.set_trace()
+                updated_belief = self.hypothesize_updated_belief(self.beliefs, state, human_action)
+
                 best_entropy_of_next_state = None
                 best_info_gain = -10000000
                 best_human_action = None
+                best_belief= None
                 for human_action_next_state in self.possible_actions:
                     if human_action_next_state is not None and next_state[human_action_next_state] > 0:
                         # prob_a_h_t1 = human_action_to_prob[human_action_next_state]
-                        updated_belief = self.hypothesize_updated_belief(next_state, human_action_next_state)
-                        entropy_of_next_state = entropy([updated_belief[i]['prob'] for i in updated_belief], base=2)
+                        next_updated_belief = self.hypothesize_updated_belief(updated_belief, next_state, human_action_next_state)
+                        entropy_of_next_state = entropy([next_updated_belief[i]['prob'] for i in next_updated_belief], base=2)
                         info_gain = entropy_of_current_state - entropy_of_next_state
                         if info_gain > best_info_gain:
                             best_info_gain = info_gain
                             best_human_action = human_action_next_state
                             best_entropy_of_next_state = entropy_of_next_state
+                            best_belief = next_updated_belief
 
 
-                if human_action is None:
-                    prob_a_h_t = 0
-                # print("human action and prob", (human_action, prob_a_h_t))
+                # if human_action is None:
+                #     prob_a_h_t = 0
+                # print("\nupdated belief = ", best_belief)
+                # print(f"robot: {robot_action}, human action {human_action}, prob= {prob_a_h_t}, best next h={best_human_action}: best info gain = {best_info_gain}\n init entropy = {entropy_of_current_state}, next entropy = {best_entropy_of_next_state}")
                 robot_action_to_info_gain[robot_action] += prob_a_h_t * best_entropy_of_next_state
                 # pdb.set_trace()
 
@@ -3208,13 +3215,13 @@ class Robot:
         p_explore = np.random.uniform(0,1)
         total_rounds = 4
         explore_alpha = max(0.0, -(1.0/total_rounds) * round_no + 1.0)
-        print("originally proposed action = ", r_action)
+        # print("originally proposed action = ", r_action)
         if use_exploration:
             if p_explore < explore_alpha:
                 r_action = self.take_explore_action(state, human_action_to_prob)
         # if p_explore < explore_alpha:
         #     r_action = self.take_explore_action(state, human_action_to_prob)
-                print("Exploratory action = ", r_action)
+                # print("Exploratory action = ", r_action)
             # self.take_explore_action_entropy_based(state)
 
 

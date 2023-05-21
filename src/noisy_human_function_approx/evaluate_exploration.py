@@ -1024,7 +1024,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
         # (YELLOW, 1): np.random.randint(3,10)
     }
     robot_rew = {
-        (BLUE, 0): 4,
+        (BLUE, 0): -5,
         (RED, 0): 5,
         # (BLUE, 1): 0,
         # (RED, 1): 0,
@@ -2549,7 +2549,7 @@ if __name__ == "__main__":
     experiment_number = 'test'
     task_type = 'cirl_w_easy_rc' # ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']
     # exploration_type = 'wo_expl'
-    replan_type = 'w_replan' # ['wo_replan', 'w_replan']
+    replan_type = 'wo_replan' # ['wo_replan', 'w_replan']
     # random_human = False
     num_exps = 1
     for exploration_type in ['wo_expl', 'w_expl']:
