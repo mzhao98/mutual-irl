@@ -9,7 +9,8 @@ import random
 import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
-from robot_model_birl_rew import Robot
+# from robot_model_birl_rew import Robot
+from robot_model_cirl_baseline import Robot
 # from robot_model_fixed_lstm import Robot
 # from robot_model_fcn import Robot
 # from robot_model_birl_prob_plan_out import Robot
@@ -1184,7 +1185,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal_to_max, lstm_accuracies_list, experiment_results
 
 
-def run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps):
+def run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps, belief_threshold=0.9):
     task_reward = [1, 1, 1, 1]
 
     cvi_percents = []
@@ -1213,7 +1214,7 @@ def run_experiment(global_seed, experiment_number, task_type, exploration_type, 
     if exploration_type == 'wo_expl':
         use_exploration = False
 
-    experiment_name = f'exp-{experiment_number}_nexps-{num_exps}_globalseed-{global_seed}_task-{task_type}_explore-{exploration_type}_replan-{replan_type}_h-{r_h_str}'
+    experiment_name = f'exp-{experiment_number}_nexps-{num_exps}_globalseed-{global_seed}_task-{task_type}_explore-{exploration_type}_replan-{replan_type}_h-{r_h_str}_thresh-{belief_threshold}'
     path = f"results/{experiment_name}"
     # Check whether the specified path exists or not
     isExist = os.path.exists(path)
@@ -1237,7 +1238,7 @@ def run_experiment(global_seed, experiment_number, task_type, exploration_type, 
 
 
     h_alpha = 0
-    update_threshold = 0.9
+    update_threshold = belief_threshold
 
     configs['h_alpha'] = h_alpha
     configs['update_threshold'] = update_threshold
@@ -1502,6 +1503,15 @@ def run_experiment(global_seed, experiment_number, task_type, exploration_type, 
 
     print("CVI Mean Percent of Opt reward = ", np.round(np.mean(cvi_percents), 5))
     print("CVI Std Percent of Opt reward = ", np.std(cvi_percents))
+
+    aggregate_results['times_max_prob_is_correct'] = times_max_prob_is_correct
+    aggregate_results['times_max_prob_is_close'] = times_max_prob_is_close
+    aggregate_results['num_equal_to_max'] = num_equal_to_max
+    aggregate_results['mean_num_equal_to_max'] = np.mean(num_equal_to_max)
+
+
+    with open(path + '/' + 'aggregate_results.pkl', 'wb') as fp:
+        pickle.dump(aggregate_results, fp)
 
 
 def run_experiment_without_multiprocess(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps):
@@ -2521,18 +2531,38 @@ def run_experiment_random_human_without_multiprocess():
         pickle.dump(aggregate_results, fp)
 
 
-if __name__ == "__main__":
+def eval_threshold():
     np.random.seed(0)
     global_seed = 0
-    experiment_number = '1_birl_boltz_h-only'
-    task_type = 'cirl_w_hard_rc' # ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']
+    experiment_number = '1_birl_eval_thresh_no_noise_human'
+    task_type = 'cirl_w_hard_rc'  # ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']
     # exploration_type = 'wo_expl'
-    replan_type = 'w_replan' # ['wo_replan', 'w_replan']
+    replan_type = 'wo_replan'  # ['wo_replan', 'w_replan']
     # random_human = False
     num_exps = 100
-    for exploration_type in ['wo_expl', 'w_expl']:
-        for random_human in [True, False]:
-            run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
+    belief_thresholds = [0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+    exploration_type = 'wo_expl'
+    random_human = False
+    for belief_threshold in belief_thresholds:
+            run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps, belief_threshold)
+            # run_experiment_without_multiprocess(global_seed, experiment_number, task_type, exploration_type,
+            #                                     replan_type, random_human, num_exps, belief_threshold)
+
+
+if __name__ == "__main__":
+    # eval_threshold()
+    np.random.seed(0)
+    global_seed = 0
+    experiment_number = '4_baseline-cirl_boltz_human'
+    task_type = 'cirl_w_hard_rc' # ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']
+    # exploration_type = 'wo_expl'
+    # replan_type = 'wo_replan' # ['wo_replan', 'w_replan']
+    # random_human = False
+    num_exps = 100
+    for replan_type in ['wo_replan', 'w_replan']:
+        for exploration_type in ['w_expl', 'wo_expl']:
+            for random_human in [False]:
+                run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
             # run_experiment_without_multiprocess(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
 
     # run_experiment_without_multiprocess()

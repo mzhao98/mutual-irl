@@ -52,7 +52,7 @@ class Robot:
         self.pi = None
         self.policy = None
         self.epsilson = 0.0001
-        self.gamma = 0.99
+        self.gamma = 0.9
         self.greedy_gamma = 0.9
         self.human_gamma = 0.0001
         self.maxiter = 100
@@ -3086,15 +3086,112 @@ class Robot:
                 best_actions_list.append(robot_action)
 
         # print("robot_action_to_info_gain", robot_action_to_info_gain)
-        # print("robot_action_to_info_gain", robot_action_to_info_gain)
+        print("robot_action_to_info_gain", robot_action_to_info_gain)
         best_action_idx = np.random.choice(np.arange(len(best_actions_list)))
         best_action = best_actions_list[best_action_idx]
         # max_key = max(robot_action_to_info_gain, key=lambda k: robot_action_to_info_gain[k])
         return best_action
 
+    def get_info_gain(self, state, human_action_to_prob_for_state):
+        entropy_of_current_state = entropy([self.beliefs[i]['prob'] for i in self.beliefs], base=2)
+
+        robot_action_to_info_gain = {}
+        for robot_action in self.possible_actions:
+            if robot_action is not None and state[robot_action] == 0:
+                continue
+            robot_action_to_info_gain[robot_action] = 0
+            for human_action in self.possible_actions:
+                if human_action is not None and state[human_action] == 0:
+                    prob_a_h_t = 0
+                else:
+                    prob_a_h_t = human_action_to_prob_for_state[human_action]
+
+                joint_action = {'robot': robot_action, 'human': human_action}
+
+                next_state, (_, _, _), done = self.step_given_state(state, joint_action, self.ind_rew)
+                if done:
+                    break
+
+                human_action_to_prob = {}
+                for h_reward_idx in self.beliefs:
+                    # print(f"h_reward_idx = {h_reward_idx} of total # beliefs {len(self.beliefs)}")
+                    h_reward_hypothesis = self.beliefs[h_reward_idx]['reward_dict']
+                    probability_of_hyp = self.beliefs[h_reward_idx]['prob']
+
+                    possible_human_action_to_prob = self.get_human_action_under_hypothesis(next_state,
+                                                                                           h_reward_hypothesis)
+                    # print("possible_human_action_to_prob", possible_human_action_to_prob)
+                    # print("probability_of_hyp", probability_of_hyp)
+
+                    for h_act in possible_human_action_to_prob:
+
+                        # else:
+                        h_prob = possible_human_action_to_prob[h_act]
+                        if h_act is None:
+                            # h_prob = 0
+                            human_action_to_prob[h_act] = 0
+                        else:
+                            if h_act not in human_action_to_prob:
+                                # h_prob = 0
+                                human_action_to_prob[h_act] = 0
+
+                            human_action_to_prob[h_act] += (probability_of_hyp * h_prob)
+
+                # print("human_action_to_prob", human_action_to_prob)
+                # pdb.set_trace()
+                updated_belief = self.hypothesize_updated_belief(self.beliefs, state, human_action)
+
+                best_entropy_of_next_state = None
+                best_info_gain = -10000000
+                best_human_action = None
+                best_belief = None
+                for human_action_next_state in self.possible_actions:
+                    if human_action_next_state is not None and next_state[human_action_next_state] > 0:
+                        # prob_a_h_t1 = human_action_to_prob[human_action_next_state]
+                        next_updated_belief = self.hypothesize_updated_belief(updated_belief, next_state,
+                                                                              human_action_next_state)
+                        entropy_of_next_state = entropy([next_updated_belief[i]['prob'] for i in next_updated_belief],
+                                                        base=2)
+                        info_gain = entropy_of_current_state - entropy_of_next_state
+                        if info_gain > best_info_gain:
+                            best_info_gain = info_gain
+                            best_human_action = human_action_next_state
+                            best_entropy_of_next_state = entropy_of_next_state
+                            best_belief = next_updated_belief
+
+                # if human_action is None:
+                #     prob_a_h_t = 0
+                # print("\nupdated belief = ", best_belief)
+                # print(f"robot: {robot_action}, human action {human_action}, prob= {prob_a_h_t}, best next h={best_human_action}: best info gain = {best_info_gain}\n init entropy = {entropy_of_current_state}, next entropy = {best_entropy_of_next_state}")
+                robot_action_to_info_gain[robot_action] += prob_a_h_t * best_entropy_of_next_state
+                # pdb.set_trace()
+
+        max_info_gain = -10000
+        best_action = None
+        best_actions_list = []
+        for robot_action in robot_action_to_info_gain:
+            # if robot_action is None:
+            #     continue
+            robot_action_to_info_gain[robot_action] = entropy_of_current_state - robot_action_to_info_gain[robot_action]
+            if robot_action_to_info_gain[robot_action] > max_info_gain:
+                max_info_gain = robot_action_to_info_gain[robot_action]
+                # best_action = robot_action
+                best_actions_list = []
+                best_actions_list.append(robot_action)
+
+            elif robot_action_to_info_gain[robot_action] == max_info_gain:
+                best_actions_list.append(robot_action)
+
+        # print("robot_action_to_info_gain", robot_action_to_info_gain)
+        # print("robot_action_to_info_gain", robot_action_to_info_gain)
+        # best_action_idx = np.random.choice(np.arange(len(best_actions_list)))
+        # best_action = best_actions_list[best_action_idx]
+        # max_key = max(robot_action_to_info_gain, key=lambda k: robot_action_to_info_gain[k])
+        return robot_action_to_info_gain
 
 
-    def act(self, state, is_start=False, round_no=0, use_exploration=False, boltzman=False):
+
+    def act_explore_1(self, state, is_start=False, round_no=0, use_exploration=False, boltzman=False):
         # max_key = max(self.beliefs, key=lambda k: self.beliefs[k]['prob'])
         # print("max prob belief", self.beliefs[max_key]['reward_dict'])
 
@@ -3222,6 +3319,166 @@ class Robot:
         # if p_explore < explore_alpha:
         #     r_action = self.take_explore_action(state, human_action_to_prob)
                 # print("Exploratory action = ", r_action)
+            # self.take_explore_action_entropy_based(state)
+
+
+        # print("single_action_distribution", single_action_distribution)
+        # print("r_action", r_action)
+        return r_action
+
+
+    def act(self, state, is_start=False, round_no=0, use_exploration=False, boltzman=False):
+        # max_key = max(self.beliefs, key=lambda k: self.beliefs[k]['prob'])
+        # print("max prob belief", self.beliefs[max_key]['reward_dict'])
+
+        current_state = copy.deepcopy(state)
+        # print(f"current_state = {current_state}")
+        current_state_tup = self.state_to_tuple(current_state)
+
+        state_idx = self.state_to_idx[current_state_tup]
+
+        action_distribution = self.policy[state_idx]
+
+        # for a_idx in self.idx_to_action:
+        #     print(f"action {self.idx_to_action[a_idx]} --> value = {action_distribution[a_idx]}")
+
+        # print("action_distribution", action_distribution)
+        # action = np.random.choice(np.flatnonzero(action_distribution == action_distribution.max()))
+        action = np.argmax(action_distribution)
+        # action = np.flatnonzero(action_distribution == action_distribution.max())[0]
+        action = self.idx_to_action[action]
+
+        # print("idx_to_action = ", self.idx_to_action)
+        # print("action_distribution = ", action_distribution)
+        # print("action", action)
+
+        r_action = action[0]
+
+        human_action_to_prob = {}
+        for h_reward_idx in self.beliefs:
+            # print(f"h_reward_idx = {h_reward_idx} of total # beliefs {len(self.beliefs)}")
+            h_reward_hypothesis = self.beliefs[h_reward_idx]['reward_dict']
+            probability_of_hyp = self.beliefs[h_reward_idx]['prob']
+
+            possible_human_action_to_prob = self.get_human_action_under_hypothesis(current_state, h_reward_hypothesis)
+            # print("possible_human_action_to_prob", possible_human_action_to_prob)
+            # print("probability_of_hyp", probability_of_hyp)
+
+            for h_act in possible_human_action_to_prob:
+                if h_act is None:
+                    h_prob = 0
+                else:
+                    h_prob = possible_human_action_to_prob[h_act]
+                if h_act not in human_action_to_prob:
+                    human_action_to_prob[h_act] = 0
+
+                human_action_to_prob[h_act] += (probability_of_hyp * h_prob)
+
+
+
+
+        single_action_distribution = {}
+        for i in range(len(action_distribution)):
+            q_value_for_joint = action_distribution[i]
+            j_action = self.idx_to_action[i]
+
+            single_r_action = j_action[0]
+            single_h_action = j_action[1]
+            # print(f"Robot {single_r_action}, Human {single_h_action}")
+            # print("q_value_for_joint", q_value_for_joint)
+            prob_human_act = human_action_to_prob[single_h_action]
+            if single_r_action not in single_action_distribution:
+                single_action_distribution[single_r_action] = 0
+
+
+            single_action_distribution[single_r_action] += (q_value_for_joint * prob_human_act)
+
+        if use_exploration:
+            robot_action_to_info_gain = self.get_info_gain(state, human_action_to_prob)
+            total_rounds = 4
+            explore_phi = max(0.0, -(10.0 / total_rounds) * round_no + 10.0)
+            # explore_phi = 10.0
+            # print("single_action_distribution", single_action_distribution)
+            # print("robot_action_to_info_gain", robot_action_to_info_gain)
+            for single_r_action in single_action_distribution:
+                if single_r_action not in robot_action_to_info_gain:
+                    continue
+                potential_info_gain = robot_action_to_info_gain[single_r_action]
+                single_action_distribution[single_r_action] += explore_phi * potential_info_gain
+
+        if boltzman:
+            own_beta = 2
+            Z = 0
+            for single_r_action in single_action_distribution:
+                # print("single_action_distribution[single_r_action]", single_action_distribution[single_r_action])
+
+                single_action_distribution[single_r_action] = np.round(
+                    np.exp(single_action_distribution[single_r_action]/100 * own_beta), 5)
+                Z += single_action_distribution[single_r_action]
+
+            if Z == 0:
+                for single_r_action in single_action_distribution:
+                    single_action_distribution[single_r_action] = 1 / len(single_action_distribution)
+            else:
+                is_nan_exists = False
+                for single_r_action in single_action_distribution:
+                    single_action_distribution[single_r_action] = single_action_distribution[single_r_action] / Z
+
+                    if np.isnan(single_action_distribution[single_r_action]):
+                        is_nan_exists = True
+
+                    if is_nan_exists:
+                        print("IS NAN EXISTS")
+                        for single_r_action in single_action_distribution:
+                            single_action_distribution[single_r_action] = 1 / len(single_action_distribution)
+
+            # print("single_action_distribution", single_action_distribution)
+
+            r_action_keys = list(single_action_distribution.keys())
+            probs = list(single_action_distribution.values())
+            r_action = r_action_keys[np.random.choice(np.arange(len(r_action_keys)), p=probs)]
+
+        else:
+            best_r_action = None
+            max_prob = -100000
+            # print("starting best action", best_r_action)
+            for candidate_r_action in self.possible_actions:
+                # print("candidate_r_action = ", candidate_r_action)
+                if candidate_r_action not in single_action_distribution:
+                    # print("continuing")
+                    continue
+                if candidate_r_action is not None and current_state[candidate_r_action] == 0:
+                    continue
+
+                # print("single_action_distribution[candidate_r_action]", single_action_distribution[candidate_r_action])
+                # print("max_prob", max_prob)
+                candidate_prob = np.round(single_action_distribution[candidate_r_action], 3)
+                if candidate_prob > max_prob:
+                    max_prob = candidate_prob
+                    best_r_action = candidate_r_action
+                    # best_r_action = r_action
+                # print("current best action", best_r_action)
+
+            # if r_action != best_r_action:
+                # print("best_r_action", best_r_action)
+                # print("r_action", r_action)
+                # print("single_action_distribution", single_action_distribution)
+            # print("single_action_distribution", single_action_distribution)
+            r_action = best_r_action
+
+        # r_action = max(single_action_distribution.items(), key=operator.itemgetter(1))[0]
+        # p_explore = np.random.uniform(0,1)
+        # total_rounds = 4
+        # # explore_alpha = max(0.0, -(1.0/total_rounds) * round_no + 1.0)
+        # explore_alpha = 1.0
+        # print("originally proposed action = ", r_action)
+        # if use_exploration:
+        #     if p_explore < explore_alpha:
+        #         r_action = self.take_explore_action(state, human_action_to_prob)
+        #         robot_action_to_info_gain = self.get_info_gain(state, human_action_to_prob)
+        # # if p_explore < explore_alpha:
+        # #     r_action = self.take_explore_action(state, human_action_to_prob)
+        #         print("Exploratory action = ", r_action)
             # self.take_explore_action_entropy_based(state)
 
 

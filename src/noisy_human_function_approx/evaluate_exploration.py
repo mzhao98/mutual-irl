@@ -1018,14 +1018,14 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     # examine
     human_rew = {
         (BLUE, 0): 4,
-        (RED, 0): 9,
+        (RED, 0): 10,
         # (BLUE, 1): 4,
         # (RED, 1): 4,
         # (YELLOW, 1): np.random.randint(3,10)
     }
     robot_rew = {
-        (BLUE, 0): -5,
-        (RED, 0): 5,
+        (BLUE, 0): 4,
+        (RED, 0): 7,
         # (BLUE, 1): 0,
         # (RED, 1): 0,
         # (YELLOW, 1): np.random.randint(3,10)
@@ -1096,7 +1096,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
         count = np.random.randint(1, 4)
         for c in range(count):
             starting_objects.append(object)
-    starting_objects = [(BLUE, 0), (RED, 0),(BLUE, 0)]
+    starting_objects = [(BLUE, 0), (RED, 0),(BLUE, 0), (BLUE, 0)]
     #
     experiment_config['starting_objects'] = starting_objects
 
@@ -1132,7 +1132,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     cvi_rew, cvi_human_rew, cvi_robot_rew, multiround_belief_history, \
     reward_for_all_rounds, max_prob_is_correct, max_prob_is_close, num_equal_to_max, \
     lstm_accuracies_list, game_results = env.rollout_multiround_game_two_agents(replan_online, use_exploration,
-        num_rounds=6, plot=False)
+        num_rounds=1, plot=False)
     # print("CVI final_team_rew = ", cvi_rew)
     exp_results['cvi_rew'] = cvi_rew
     exp_results['cvi_multiround_belief_history'] = multiround_belief_history
@@ -2549,7 +2549,7 @@ if __name__ == "__main__":
     experiment_number = 'test'
     task_type = 'cirl_w_easy_rc' # ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']
     # exploration_type = 'wo_expl'
-    replan_type = 'wo_replan' # ['wo_replan', 'w_replan']
+    replan_type = 'w_replan' # ['wo_replan', 'w_replan']
     # random_human = False
     num_exps = 1
     for exploration_type in ['wo_expl', 'w_expl']:
