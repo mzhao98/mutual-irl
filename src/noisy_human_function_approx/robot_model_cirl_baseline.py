@@ -307,7 +307,7 @@ class Robot:
                         robot_r = self.ind_rew[r_action]
 
                 team_r = -2
-                candidate_rew = team_r + robot_r + human_r
+                candidate_rew = team_r + human_r
                 if candidate_rew > max_composite_reward_for_human_action:
                     max_composite_reward_for_human_action = candidate_rew
 
@@ -340,7 +340,7 @@ class Robot:
                                 robot_r = self.ind_rew[r_action]
 
                         team_r = -2
-                        candidate_rew = team_r + robot_r + human_r
+                        candidate_rew = team_r + human_r
                         if candidate_rew > human_only_rew_for_possible_action:
                             human_only_rew_for_possible_action = candidate_rew
 
@@ -665,14 +665,14 @@ class Robot:
                         human_rew += 0
                     elif state_remaining_objects[robot_action] == 1:
                         state_remaining_objects[robot_action] -= 1
-                        # human_rew += human_reward[human_action]
-                        pickup_agent = np.random.choice(['r', 'h'])
-                        if pickup_agent == 'r':
-                            robot_rew += self.ind_rew[robot_action]
-                            # human_rew = -1
-                        else:
-                            # robot_rew = -1
-                            human_rew += human_reward[human_action]
+                        human_rew += human_reward[human_action]
+                        # pickup_agent = np.random.choice(['r', 'h'])
+                        # if pickup_agent == 'r':
+                        #     robot_rew += self.ind_rew[robot_action]
+                        #     # human_rew = -1
+                        # else:
+                        #     # robot_rew = -1
+                        #     human_rew += human_reward[human_action]
                     else:
                         state_remaining_objects[robot_action] -= 1
                         state_remaining_objects[human_action] -= 1

@@ -11,6 +11,7 @@ from scipy import stats
 from multiprocessing import Pool, freeze_support
 # from robot_model_birl_rew import Robot
 from robot_model_cirl_baseline import Robot
+# from robot_model_maxent_baseline import Robot
 # from robot_model_fixed_lstm import Robot
 # from robot_model_fcn import Robot
 # from robot_model_birl_prob_plan_out import Robot
@@ -115,8 +116,10 @@ class Simultaneous_Cleanup():
                 # pickup_agent = np.random.choice(['r', 'h'])
                 # if pickup_agent == 'r':
                 #     robot_rew = self.robot.ind_rew[robot_action]
+                #     robot_action_successful = True
                 # else:
                 #     human_rew = self.human.ind_rew[human_action]
+                #     human_action_successful = True
             else:
                 self.state_remaining_objects[robot_action] -= 1
                 self.state_remaining_objects[human_action] -= 1
@@ -555,7 +558,7 @@ class Simultaneous_Cleanup():
             # print()
             total_reward += (team_rew + robot_rew + human_rew)
 
-            if iters > 100:
+            if iters > 20:
                 # print("Cannot finish")
                 break
 
@@ -589,6 +592,7 @@ class Simultaneous_Cleanup():
             game_results[round_no] = {'traj': [], 'rewards':[], 'beliefs':[], 'final_reward':0}
             # print(f"\n\nRound = {round_no}")
             if type(self.robot) == Robot:
+                # print("Set up value iteration again")
                 self.robot.setup_value_iteration()
             if type(self.human) == Robot:
                 self.human.setup_value_iteration()
@@ -631,6 +635,7 @@ class Simultaneous_Cleanup():
             prev_data_pt = (None, None, None)
             while not done:
                 iters += 1
+                # print("iters = ", iters)
                 current_state = copy.deepcopy(self.state_remaining_objects)
 
                 robot_action = self.robot.act(current_state, is_start=is_start, round_no=round_no, use_exploration=use_exploration, boltzman=False)
@@ -694,7 +699,8 @@ class Simultaneous_Cleanup():
 
                 if hasattr(self.robot, 'human_lstm') is False:
                     if type(self.robot) == Robot:
-                        self.robot.update_based_on_h_action(current_state, robot_action, human_action)
+                        if robot_action_successful is True or human_action_successful is True:
+                            self.robot.update_based_on_h_action(current_state, robot_action, human_action)
 
                 if hasattr(self.robot, 'human_lstm'):
                     if prev_robot_action is not None:
@@ -722,11 +728,11 @@ class Simultaneous_Cleanup():
 
                 # print(f"team rew = {team_rew}, human rew = {human_rew}, robot rew = {robot_rew} --> total rew = {total_reward}\n")
 
-                if iters > 100:
+                if iters > 20:
                     # print("Cannot finish")
                     break
 
-            # print("total_reward", total_reward)
+            # print("Game over: total_reward", total_reward)
 
             multiround_belief_history[round_no] = self.robot.history_of_human_beliefs
             reward_for_all_rounds.append(total_reward)
@@ -1108,13 +1114,15 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
                   vi_type='cvi', is_collaborative_human=True, update_threshold=update_threshold)
     human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha,
                                            h_deg_collab=random_h_deg_collab)
+    # print("setup value iteration")
     robot.setup_value_iteration()
+    # print("Create Env")
     env = Simultaneous_Cleanup(robot, human, starting_objects)
     cvi_rew, cvi_human_rew, cvi_robot_rew, multiround_belief_history, \
     reward_for_all_rounds, max_prob_is_correct, max_prob_is_close, num_equal_to_max, \
     lstm_accuracies_list, game_results = env.rollout_multiround_game_two_agents(replan_online, use_exploration,
         num_rounds=6, plot=False)
-    # print("CVI final_team_rew = ", cvi_rew)
+    print("CVI final_team_rew = ", max(0.0, cvi_rew/optimal_rew))
     exp_results['cvi_rew'] = cvi_rew
     exp_results['cvi_multiround_belief_history'] = multiround_belief_history
     exp_results['cvi_reward_for_all_rounds'] = reward_for_all_rounds
@@ -1186,6 +1194,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
 
 
 def run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps, belief_threshold=0.9):
+    np.random.seed(global_seed)
     task_reward = [1, 1, 1, 1]
 
     cvi_percents = []
@@ -2551,9 +2560,11 @@ def eval_threshold():
 
 if __name__ == "__main__":
     # eval_threshold()
-    np.random.seed(0)
+
     global_seed = 0
-    experiment_number = '4_baseline-cirl_boltz_human'
+    # experiment_number = '7_ma-for-all_baseline-cirl_boltz_human'
+    experiment_number = '7_baseline-cirl_boltz_human'
+    # experiment_number = '7_coirl_birl-cirl_boltz_human'
     task_type = 'cirl_w_hard_rc' # ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']
     # exploration_type = 'wo_expl'
     # replan_type = 'wo_replan' # ['wo_replan', 'w_replan']
@@ -2563,7 +2574,7 @@ if __name__ == "__main__":
         for exploration_type in ['w_expl', 'wo_expl']:
             for random_human in [False]:
                 run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
-            # run_experiment_without_multiprocess(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
+                # run_experiment_without_multiprocess(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
 
     # run_experiment_without_multiprocess()
     # run_experiment_random_human_without_multiprocess()
