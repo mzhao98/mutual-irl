@@ -2919,7 +2919,7 @@ class Robot:
         return
 
 
-    def act(self, state, is_start=False):
+    def act(self, state, is_start=False, round_no=0, use_exploration=False, boltzman=False):
         # max_key = max(self.beliefs, key=lambda k: self.beliefs[k]['prob'])
         # print("max prob belief", self.beliefs[max_key]['reward_dict'])
 

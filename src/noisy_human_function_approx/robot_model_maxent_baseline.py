@@ -208,7 +208,7 @@ class Robot:
         transition_probability = self.transitions
         discount = self.gamma
         n_actions = len(self.action_to_idx)
-        epochs = 10
+        epochs = 50
         learning_rate = 0.01
         _,  updated_believed_human_reward = irl(self.feature_matrix, n_actions, discount, transition_probability,
                                             trajectories, epochs, learning_rate)
@@ -276,7 +276,7 @@ class Robot:
         transition_probability = self.transitions
         discount = self.gamma
         n_actions = len(self.action_to_idx)
-        epochs = 10
+        epochs = 50
         learning_rate = 0.01
         _, self.believed_human_reward = irl(self.feature_matrix, n_actions, discount, transition_probability,
             trajectories, epochs, learning_rate)
@@ -2704,7 +2704,7 @@ class Robot:
         if self.episode_history is not None and len(self.episode_history) > 0:
             # print('Running max ent')
             self.run_max_ent()
-            # print("Done with max ent", self.believed_human_reward_dict)
+            print("Done with max ent", self.believed_human_reward_dict)
 
         if self.vi_type == 'cvi':
             if self.robot_knows_human_rew is False:
