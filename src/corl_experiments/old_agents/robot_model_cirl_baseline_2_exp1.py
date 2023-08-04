@@ -719,7 +719,7 @@ class Robot:
 
             # print("candidate_rew", candidate_rew)
             team_r = -2
-            candidate_rew = team_r + robot_r + human_r
+            candidate_rew = team_r + human_r
             if candidate_h_act is not None:
                 # if candidate_rew == max_reward:
                 #     if candidate_h_act not in best_human_act:
@@ -1181,7 +1181,7 @@ class Robot:
                                 self.step_given_state(current_state_remaining_objects, joint_action, h_reward_hypothesis)
 
 
-                            expected_reward_sa += ((team_rew + robot_rew + human_rew) * probability_of_hyp)
+                            expected_reward_sa += ((team_rew + human_rew) * probability_of_hyp)
 
 
                         next_state, (_, _, _), done = \
@@ -1285,7 +1285,7 @@ class Robot:
                             self.step_given_state(current_state_remaining_objects, joint_action, h_reward_hypothesis)
 
 
-                        expected_reward_sa +=  (( team_rew + robot_rew + human_rew) * probability_of_hyp)
+                        expected_reward_sa +=  (( team_rew + human_rew) * probability_of_hyp)
 
                         # if r_act is None:
                         #     expected_reward_sa -= 0

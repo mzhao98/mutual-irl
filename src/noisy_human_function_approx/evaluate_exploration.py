@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
-from robot_model_birl_rew import Robot
+from robot_model_birl_rew_saved_exp1 import Robot
 # from robot_model_fixed_lstm import Robot
 # from robot_model_fcn import Robot
 # from robot_model_birl_prob_plan_out import Robot
@@ -1025,7 +1025,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     }
     robot_rew = {
         (BLUE, 0): 4,
-        (RED, 0): 7,
+        (RED, 0): 5,
         # (BLUE, 1): 0,
         # (RED, 1): 0,
         # (YELLOW, 1): np.random.randint(3,10)

@@ -9,10 +9,9 @@ import random
 import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
-from robot_model_cirl_prag_ped import Robot
 # from robot_model_cirl_baseline_exp1 import Robot
 # from robot_model_cirl_baseline_2_exp1 import Robot
-# from robot_model_birl_rew_saved_exp1 import Robot
+from robot_model_birl_rew_saved_exp1 import Robot
 # from robot_model_cirl_baseline import Robot
 # from robot_model_maxent_baseline import Robot
 # from robot_model_fixed_lstm import Robot
@@ -72,6 +71,9 @@ class Simultaneous_Cleanup():
                 self.possible_actions.append(obj_tuple)
             else:
                 self.state_remaining_objects[obj_tuple] += 1
+
+        # pdb.set_trace()
+        # print("UPDATED self.state_remaining_objects", self.state_remaining_objects)
 
     def get_all_possible_joint_actions(self):
         possible_joint_actions = []
@@ -577,9 +579,19 @@ class Simultaneous_Cleanup():
         return optimal_rew, human_only_reward, robot_only_reward, game_results
 
     def rollout_multiround_game_two_agents(self, replan_online, use_exploration, num_rounds, plot=False):
-        total_reward = 0
-        human_only_reward = 0
-        robot_only_reward = 0
+        team_rew = {
+            (BLUE, 0): -1,
+            (RED, 0): -1,
+            (GREEN, 0): -1,
+            (YELLOW, 0): -1,
+            (BLUE, 1): -1,
+            (RED, 1): -1,
+            (GREEN, 1): -1,
+            (YELLOW, 1): -1,
+            None: -1}
+        # all_objects = [(BLUE, 0), (RED, 0), (BLUE, 1), (RED, 1)]
+        all_objects = [(RED, 0), (BLUE, 1), (RED, 1)]
+
 
         multiround_belief_history = {}
         reward_for_all_rounds = []
@@ -589,83 +601,16 @@ class Simultaneous_Cleanup():
         # print(f"robot rew = {self.robot.ind_rew}")
         game_results = {}
 
-        round_no = -1
-        game_results[round_no] = {'traj': [], 'rewards':[], 'beliefs':[], 'final_reward':0}
-        # print(f"\n\nRound = {round_no}")
-        if type(self.robot) == Robot:
-            self.robot.setup_value_iteration()
-        if type(self.human) == Robot:
-            self.human.setup_value_iteration()
 
-        self.robot.reset_belief_history()
-
-        # print("self.robot.beliefs", self.robot.beliefs)
-        # print(f"true = {self.robot.true_human_rew_idx}, beliefs = {self.robot.beliefs[self.robot.true_human_rew_idx]}")
-
-        self.reset()
-        total_reward = 0
-        human_only_reward = 0
-        robot_only_reward = 0
-
-        done = False
-        total_reward = 0
-        human_only_reward = 0
-        robot_only_reward = 0
-        iters = 0
-
-        human_y = 1
-        robot_y = 2
-
-        human_rewards_over_round = []
-        robot_rewards_over_round = []
-        team_rewards_over_round = []
-        total_rewards_over_round = []
-
-        is_start = True
-        prev_robot_action = None
-        prev_data_pt = (None, None, None)
-        while not done:
-            iters += 1
-            current_state = copy.deepcopy(self.state_remaining_objects)
-
-            robot_action = self.robot.act(current_state, is_start=is_start, round_no=round_no, use_exploration=use_exploration, boltzman=False)
-            # robot_action = self.robot.act_old(current_state)
-            is_start = False
-            # print("current_state for human acting", current_state)
-            human_action = self.human.act(current_state, round_no)
-
-            game_results[round_no]['traj'].append((current_state, robot_action, human_action))
-
-            action = {'robot': robot_action, 'human': human_action}
-            # print(f"iter {iters}: objects left {sum(self.state_remaining_objects.values())} --> action {action}")
-
-            (team_rew, robot_rew, human_rew), done, (robot_action_successful, human_action_successful) = self.step(
-                action)
-
-            game_results[round_no]['rewards'].append((team_rew, robot_rew, human_rew))
-            game_results[round_no]['beliefs'].append(self.robot.beliefs)
-
-            human_rewards_over_round.append(human_rew)
-            robot_rewards_over_round.append(robot_rew)
-            team_rewards_over_round.append(team_rew)
-            total_rewards_over_round.append(team_rew + human_rew + robot_rew)
-
-            prev_robot_action = robot_action
-
-            human_only_reward += human_rew
-            robot_only_reward += robot_rew
-            total_reward += (team_rew + human_rew + robot_rew)
-
-            if iters > 20:
-                # print("Cannot finish")
-                break
-        reward_for_all_rounds.append(total_reward)
-        game_results[round_no]['final_reward'] = total_reward
-        # print(f"Round {round_no}: total reward = {total_reward}")
 
         for round_no in range(num_rounds):
-            game_results[round_no] = {'traj': [], 'rewards':[], 'beliefs':[], 'final_reward':0}
+
+            self.reset()
+
+            game_results[round_no] = {'traj': [], 'rewards':[], 'beliefs':[], 'final_reward': 0, 'optimal_reward': 0}
             # print(f"\n\nRound = {round_no}")
+
+
             if type(self.robot) == Robot:
                 self.robot.setup_value_iteration()
             if type(self.human) == Robot:
@@ -676,7 +621,7 @@ class Simultaneous_Cleanup():
             # print("self.robot.beliefs", self.robot.beliefs)
             # print(f"true = {self.robot.true_human_rew_idx}, beliefs = {self.robot.beliefs[self.robot.true_human_rew_idx]}")
 
-            self.reset()
+
             total_reward = 0
             human_only_reward = 0
             robot_only_reward = 0
@@ -740,6 +685,7 @@ class Simultaneous_Cleanup():
                 (team_rew, robot_rew, human_rew), done, (robot_action_successful, human_action_successful) = self.step(
                     action)
 
+
                 game_results[round_no]['rewards'].append((team_rew, robot_rew, human_rew))
                 game_results[round_no]['beliefs'].append(self.robot.beliefs)
 
@@ -747,28 +693,6 @@ class Simultaneous_Cleanup():
                 robot_rewards_over_round.append(robot_rew)
                 team_rewards_over_round.append(team_rew)
                 total_rewards_over_round.append(team_rew + human_rew + robot_rew)
-
-                # pdb.set_trace()
-                if plot:
-                    if human_action is not None:
-                        if human_action_successful is False:
-                            plt.scatter([iters - 1], [human_y], c=COLOR_TO_TEXT[human_action[0]],
-                                        s=np.power(3, human_action[1] + 4), alpha=0.2)
-                        else:
-                            plt.scatter([iters - 1], [human_y], c=COLOR_TO_TEXT[human_action[0]],
-                                        s=np.power(3, human_action[1] + 4))
-                    else:
-                        plt.scatter([iters - 1], [human_y], c='k', s=2)
-
-                    if robot_action is not None:
-                        if robot_action_successful is False:
-                            plt.scatter([iters - 1], [robot_y], c=COLOR_TO_TEXT[robot_action[0]],
-                                        s=np.power(3, robot_action[1] + 4), alpha=0.2)
-                        else:
-                            plt.scatter([iters - 1], [robot_y], c=COLOR_TO_TEXT[robot_action[0]],
-                                        s=np.power(3, robot_action[1] + 4))
-                    else:
-                        plt.scatter([iters - 1], [robot_y], c='k', s=2)
 
                 if hasattr(self.robot, 'human_lstm') is False:
                     if type(self.robot) == Robot:
@@ -816,111 +740,10 @@ class Simultaneous_Cleanup():
             multiround_belief_history[round_no] = self.robot.history_of_human_beliefs
             reward_for_all_rounds.append(total_reward)
             game_results[round_no]['final_reward'] = total_reward
+            # game_results[round_no]['optimal_reward'] = optimal_rew
+            print("total_reward = ", total_reward)
+            # print("optimal_rew", optimal_rew)
 
-            if plot:
-                plt.title(f"Game Replay Round {round_no}")
-                plt.savefig(f"images/game_replay_r{round_no}.png")
-                plt.show()
-
-                plt.figure()
-                plt.plot(range(len(human_rewards_over_round)), human_rewards_over_round, color='g', label='human',
-                         linewidth=7.0, alpha=0.5)
-                plt.plot(range(len(robot_rewards_over_round)), robot_rewards_over_round, color='m', label='robot',
-                         linewidth=2.0, alpha=1)
-                plt.plot(range(len(team_rewards_over_round)), team_rewards_over_round, color='k', label='team')
-                plt.plot(range(len(total_rewards_over_round)), total_rewards_over_round, color='b', label='total')
-                plt.legend()
-                plt.xlabel("Timestep")
-                plt.ylabel("Reward")
-                plt.title(f"Reward Earned in Round {round_no}")
-                plt.savefig(f"images/round_reward_r{round_no}.png")
-                plt.show()
-
-                true_rew_belief = self.robot.history_of_robot_beliefs_of_true_human_rew
-                plt.plot(range(len(true_rew_belief)), true_rew_belief)
-                plt.xlabel("Iteration")
-                plt.ylabel("Weight")
-                plt.title(f"Belief of True Reward in Round {round_no}")
-                plt.savefig(f"images/belief_history_r{round_no}.png")
-                plt.show()
-
-                plt.figure()
-                item_weights = {}
-                for i in range(len(self.robot.history_of_robot_beliefs_of_max_human_rew)):
-                    reward_dict = self.robot.history_of_robot_beliefs_of_max_human_rew[i]
-                    for object in reward_dict:
-                        if object not in item_weights:
-                            item_weights[object] = []
-                        item_weights[object].append(reward_dict[object])
-
-                for object in item_weights:
-                    weights = item_weights[object]
-                    obj_color = object[0]
-                    obj_size = object[1]
-
-                    line = 3.0
-                    alpha = 1.0
-
-                    if obj_size == 1:
-                        line = 7.0
-                        alpha = 0.3
-
-                    color = COLOR_TO_TEXT[obj_color]
-
-                    plt.plot(range(len(weights)), weights, color=color, label=object,
-                             linewidth=line, alpha=alpha)
-
-                plt.xlabel("Iteration")
-                plt.ylabel("Weight")
-                plt.title(f"Belief of Max Reward in Round {round_no}")
-                plt.savefig(f"images/max_reward_beliefs_r{round_no}.png")
-                plt.show()
-
-                plt.figure()
-                for object in self.robot.ind_rew:
-                    weights = [self.robot.ind_rew[object]] * num_rounds
-                    obj_color = object[0]
-                    obj_size = object[1]
-
-                    line = 3.0
-                    alpha = 0.6
-
-                    if obj_size == 1:
-                        line = 9.0
-                        alpha = 0.2
-
-                    color = COLOR_TO_TEXT[obj_color]
-
-                    plt.plot(range(len(weights)), weights, color=color, label=object,
-                             linewidth=line, alpha=alpha)
-                plt.xlabel("Iteration")
-                plt.ylabel("Weight")
-                plt.title(f"Robot True Reward in Round {round_no}")
-                plt.savefig(f"images/true_robot_reward_r{round_no}.png")
-                plt.show()
-
-                plt.figure()
-                for object in self.human.ind_rew:
-                    weights = [self.human.ind_rew[object]] * num_rounds
-                    obj_color = object[0]
-                    obj_size = object[1]
-
-                    line = 3.0
-                    alpha = 1.0
-
-                    if obj_size == 1:
-                        line = 7.0
-                        alpha = 0.3
-
-                    color = COLOR_TO_TEXT[obj_color]
-
-                    plt.plot(range(len(weights)), weights, color=color, label=object,
-                             linewidth=line, alpha=alpha)
-                plt.xlabel("Iteration")
-                plt.ylabel("Weight")
-                plt.title(f"Human True Reward in Round {round_no}")
-                plt.savefig(f"images/true_human_reward_r{round_no}.png")
-                plt.show()
 
         max_prob_idx = 0
         second_prob_idx = 0
@@ -1072,11 +895,10 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     if task_type == 'cirl':
         pref = (0, 0)
 
-
     experiment_config['pref'] = pref
 
     human_rew = {
-        # (BLUE, 0): np.random.randint(3, 10),
+        (BLUE, 0): np.random.randint(3, 10),
         (RED, 0): np.random.randint(3, 10),
         (BLUE, 1): np.random.randint(3, 10),
         (RED, 1): np.random.randint(3, 10),
@@ -1100,7 +922,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     #     # (YELLOW, 1): np.random.randint(3,10)
     # }
     robot_rew = {
-        # (BLUE, 0): pref[0],
+        (BLUE, 0): pref[0],
         (RED, 0): pref[1],
         (BLUE, 1): 3,
         (RED, 1): 3,
@@ -1182,22 +1004,13 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     # all_objects = [(BLUE, 0),  (RED, 0), (BLUE, 1), (RED, 1), (YELLOW, 1)]
     # all_objects = [(RED, 0), (BLUE, 1), (RED, 1), (YELLOW, 1)]
     # all_objects = [(BLUE, 1), (GREEN, 1), (RED, 1), (YELLOW, 1)]
-    # all_objects = [(BLUE, 0), (RED, 0), (BLUE, 1), (RED, 1)]
-    all_objects = [(RED, 0), (BLUE, 1), (RED, 1)]
+    all_objects = [(BLUE, 0), (RED, 0), (BLUE, 1), (RED, 1)]
+    # all_objects = [(RED, 0), (BLUE, 1), (RED, 1)]
 
     n_objects = np.random.randint(4, 10)
     # starting_objects = [all_objects[i] for i in np.random.choice(np.arange(len(all_objects)), size=n_objects, replace=True)]
-    starting_objects = []
-    for object in all_objects:
-        count = np.random.randint(1, 3)
-        # count = 1
-        # if object[1] == 0:
-        #     count = 1
-        for c in range(count):
-            starting_objects.append(object)
-    # starting_objects = [(BLUE, 0), (RED, 0), (BLUE, 1), (RED, 1),(BLUE, 0), (RED, 0), (BLUE, 1), (RED, 1)]
-    #
-    experiment_config['starting_objects'] = starting_objects
+
+
     #
     # print()
     # print("seed", seed)
@@ -1207,91 +1020,101 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     # print()
     exp_results = {}
 
+    starting_objects = copy.deepcopy(all_objects)
     robot = Robot(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=True, permutes=permutes,
                   vi_type='cvi', is_collaborative_human=True)
-    human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha,
-                                           h_deg_collab=random_h_deg_collab)
-    env = Simultaneous_Cleanup(robot, human, starting_objects)
-    optimal_rew, best_human_rew, best_robot_rew, game_results = env.compute_optimal_performance()
-    # print("Optimal Reward = ", optimal_rew)
-    exp_results['optimal_rew'] = optimal_rew
-    exp_results['optimal_game_results'] = game_results
+    robot.reset()
+    avg_rew = []
 
-    # Test 2 greedy
-    robot = Greedy_Human(robot_rew, human_rew, starting_objects, 0)
-    human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha,
-                                           h_deg_collab=random_h_deg_collab)
-    env = Simultaneous_Cleanup(robot, human, starting_objects)
-    greedy_team_rew, greedy_human_rew, greedy_robot_rew = env.rollout_full_game_two_agents()
-    # print("Fully 2 greedy final_team_rew = ", greedy_team_rew)
+    for round_number in range(6):
+        exp_results[round_number] = {}
+        starting_objects = []
+        for object in all_objects:
+            count = np.random.randint(1, 3)
+            # count = 1
+            # if object[1] == 0:
+            #     count = 1
+            for c in range(count):
+                starting_objects.append(object)
+        experiment_config['starting_objects'] = starting_objects
 
-    robot = Robot(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=False, permutes=permutes,
-                  vi_type='cvi', is_collaborative_human=True, update_threshold=update_threshold)
-    human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha,
-                                           h_deg_collab=random_h_deg_collab)
-    robot.setup_value_iteration()
-    env = Simultaneous_Cleanup(robot, human, starting_objects)
-    cvi_rew, cvi_human_rew, cvi_robot_rew, multiround_belief_history, \
-    reward_for_all_rounds, max_prob_is_correct, max_prob_is_close, num_equal_to_max, \
-    lstm_accuracies_list, game_results = env.rollout_multiround_game_two_agents(replan_online, use_exploration,
-        num_rounds=3, plot=False)
-    print("CVI final_team_rew = ", max(0.0, cvi_rew/optimal_rew))
-    exp_results['cvi_rew'] = cvi_rew
-    exp_results['cvi_multiround_belief_history'] = multiround_belief_history
-    exp_results['cvi_reward_for_all_rounds'] = reward_for_all_rounds
-    exp_results['max_prob_is_correct'] = max_prob_is_correct
-    exp_results['max_prob_is_close'] = max_prob_is_close
-    exp_results['num_equal_to_max'] = num_equal_to_max
-    exp_results['lstm_accuracies_list'] = lstm_accuracies_list
-    exp_results['cvi_game_results'] = game_results
+        robot.starting_objects = starting_objects
+        robot.reset()
+        human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha,
+                                               h_deg_collab=random_h_deg_collab)
+        env = Simultaneous_Cleanup(robot, human, starting_objects)
+        optimal_rew, best_human_rew, best_robot_rew, game_results = env.compute_optimal_performance()
+        # print("Optimal Reward = ", optimal_rew)
+        exp_results[round_number]['optimal_rew'] = optimal_rew
+        # exp_results['optimal_game_results'] = game_results
 
-    robot = Robot(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=True, permutes=permutes,
-                  vi_type='stdvi', is_collaborative_human=True)
-    human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha,
-                                           h_deg_collab=random_h_deg_collab)
-    robot.setup_value_iteration()
-    env = Simultaneous_Cleanup(robot, human, starting_objects)
-    stdvi_rew, stdvi_human_rew, stdvi_robot_rew = env.rollout_full_game_two_agents()
-    # print("StdVI final_team_rew = ", stdvi_rew)
-    exp_results['stdvi_rew'] = stdvi_rew
+        robot.starting_objects = starting_objects
+        robot.reset()
+        robot.setup_value_iteration()
+        env = Simultaneous_Cleanup(robot, human, starting_objects)
+        cvi_rew, cvi_human_rew, cvi_robot_rew, multiround_belief_history, \
+        reward_for_all_rounds, max_prob_is_correct, max_prob_is_close, num_equal_to_max, \
+        lstm_accuracies_list, game_results = env.rollout_multiround_game_two_agents(replan_online, use_exploration,
+            num_rounds=1, plot=False)
+        print("CVI final_team_rew = ", max(0.0, cvi_rew/optimal_rew))
+        avg_rew.append(max(0.0, cvi_rew/optimal_rew))
+
+        exp_results[round_number]['cvi_rew'] = cvi_rew
+        # exp_results['cvi_multiround_belief_history'] = multiround_belief_history
+        # exp_results['cvi_reward_for_all_rounds'] = reward_for_all_rounds
+        # exp_results['max_prob_is_correct'] = max_prob_is_correct
+        # exp_results['max_prob_is_close'] = max_prob_is_close
+        # exp_results['num_equal_to_max'] = num_equal_to_max
+        # exp_results['lstm_accuracies_list'] = lstm_accuracies_list
+        # exp_results['cvi_game_results'] = game_results
+
+    # robot = Robot(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=True, permutes=permutes,
+    #               vi_type='stdvi', is_collaborative_human=True)
+    # human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha,
+    #                                        h_deg_collab=random_h_deg_collab)
+    # robot.setup_value_iteration()
+    # env = Simultaneous_Cleanup(robot, human, starting_objects)
+    # stdvi_rew, stdvi_human_rew, stdvi_robot_rew = env.rollout_full_game_two_agents()
+    # # print("StdVI final_team_rew = ", stdvi_rew)
+    # exp_results['stdvi_rew'] = stdvi_rew
 
     # plot_multiround_belief_history(multiround_belief_history, all_objects)
 
-    altruism_case = 'opt'
-    if greedy_team_rew < optimal_rew:
-        altruism_case = 'subopt'
+    # altruism_case = 'opt'
+    # if greedy_team_rew < optimal_rew:
+    #     altruism_case = 'subopt'
+    #
+    # exp_results['altruism_case'] = altruism_case
 
-    exp_results['altruism_case'] = altruism_case
+        if cvi_rew > optimal_rew:
+            print("PROBLEM CVI larger than OPT")
+            print("optimal_rew", optimal_rew)
+            print("cvi_rew = ", cvi_rew)
+            print("starting_objects = ", starting_objects)
+            print("human reward = ", human_rew)
+            print("robot_rew = ", robot_rew)
+            print()
 
-    if cvi_rew > optimal_rew:
-        print("PROBLEM CVI larger than OPT")
-        print("optimal_rew", optimal_rew)
-        print("cvi_rew = ", cvi_rew)
-        print("starting_objects = ", starting_objects)
-        print("human reward = ", human_rew)
-        print("robot_rew = ", robot_rew)
-        print()
+    # percent_opt_each_round = []
+    # for j in range(len(reward_for_all_rounds)):
+    #     percent_opt_each_round.append(max(0, reward_for_all_rounds[j]) / optimal_rew)
+    #
+    # if cvi_rew > optimal_rew:
+    #     print("OPTIMAL ERROR: CVI rew larger than Optimal")
+    #     raise ArithmeticError
+    #
+    # if stdvi_rew > optimal_rew:
+    #     print("OPTIMAL ERROR: STDVI rew larger than Optimal")
+    #     raise ArithmeticError
 
-    percent_opt_each_round = []
-    for j in range(len(reward_for_all_rounds)):
-        percent_opt_each_round.append(max(0, reward_for_all_rounds[j]) / optimal_rew)
+    # cvi_percent_of_opt_team = max(0, cvi_rew) / optimal_rew
+    # stdvi_percent_of_opt_team = max(0, stdvi_rew) / optimal_rew
 
-    if cvi_rew > optimal_rew:
-        print("OPTIMAL ERROR: CVI rew larger than Optimal")
-        raise ArithmeticError
+    # exp_results['cvi_percent_of_opt_team'] = cvi_percent_of_opt_team
+    # exp_results['stdvi_percent_of_opt_team'] = stdvi_percent_of_opt_team
 
-    if stdvi_rew > optimal_rew:
-        print("OPTIMAL ERROR: STDVI rew larger than Optimal")
-        raise ArithmeticError
-
-    cvi_percent_of_opt_team = max(0, cvi_rew) / optimal_rew
-    stdvi_percent_of_opt_team = max(0, stdvi_rew) / optimal_rew
-
-    exp_results['cvi_percent_of_opt_team'] = cvi_percent_of_opt_team
-    exp_results['stdvi_percent_of_opt_team'] = stdvi_percent_of_opt_team
-
-    cvi_percent_of_opt_team = cvi_percent_of_opt_team
-    stdvi_percent_of_opt_team = stdvi_percent_of_opt_team
+    cvi_percent_of_opt_team = 0
+    stdvi_percent_of_opt_team = 0
 
     # cvi_percent_of_opt_human = max(0,cvi_human_rew) / best_human_rew
     # stdvi_percent_of_opt_human = max(0,stdvi_human_rew) / best_human_rew
@@ -1301,7 +1124,10 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     cvi_percent_of_opt_human, stdvi_percent_of_opt_human, cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot = 0, 0, 0, 0
 
     print("done with exp_num = ", exp_num)
+    altruism_case = 'opt'
+    percent_opt_each_round= []
     experiment_results = {exp_num: {'config': experiment_config, 'results':exp_results}}
+    cvi_percent_of_opt_team = np.mean(avg_rew)
     return cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal_to_max, lstm_accuracies_list, experiment_results
 
@@ -1367,7 +1193,7 @@ def run_experiment(global_seed, experiment_number, task_type, exploration_type, 
 
 
 
-    round_to_percent_rewards = {i: [] for i in range(6)}
+    round_to_percent_rewards = {i: [] for i in range(7)}
 
     times_max_prob_is_correct = 0
     times_max_prob_is_close = 0
@@ -2670,7 +2496,7 @@ if __name__ == "__main__":
     # eval_threshold()
 
     global_seed = 0
-    experiment_number = '15_coirl_noiseless_human'
+    experiment_number = '12_coirl_boltz_human'
     # experiment_number = 'testing'
     # experiment_number = '7_baseline-cirl_boltz_human'
     # experiment_number = '7_coirl_birl-cirl_boltz_human'
@@ -2680,7 +2506,7 @@ if __name__ == "__main__":
     # random_human = False
     num_exps = 100
     for replan_type in ['w_replan']:
-        for exploration_type in ['wo_expl']:
+        for exploration_type in ['w_expl']:
             for random_human in [False]:
                 run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
                 # run_experiment_without_multiprocess(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)

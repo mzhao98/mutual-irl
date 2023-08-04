@@ -1339,13 +1339,12 @@ def plot_round_results_same_plan_diff_learning_boltz_circle_2():
     # ax1, ax2, ax3, ax4, ax5, ax6 = axes.flatten()
     axes_list = [ax1, ax2, ax3]
     replan_type = 'w_replan'
-    replan_explore_to_color = {
-        ('coirl', replan_type, 'wo_expl'): '#228B22',
-       ('coirl', replan_type, 'w_expl'): '#50C878',
-       ('maxent', replan_type, 'wo_expl'): '#FF0000',
-       ('cirl', replan_type, 'wo_expl'): '#000080',
-       # ('cirl', replan_type, 'w_expl'): '#0096FF'
-       }
+    replan_explore_to_color = {('coirl', replan_type, 'wo_expl'): '#228B22',
+                               ('coirl', replan_type, 'w_expl'): '#50C878',
+                               ('maxent', replan_type, 'wo_expl'): '#FF0000',
+                               ('cirl', replan_type, 'wo_expl'): '#000080',
+                               # ('cirl', replan_type, 'w_expl'): '#0096FF'
+                               }
 
     task_human_to_ax = {}
     ax_counter = 0
@@ -1355,17 +1354,13 @@ def plot_round_results_same_plan_diff_learning_boltz_circle_2():
     zero_std = None
 
     for task_type in ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']:
-    # for task_type in ['cirl_w_easy_rc']:
+    # for task_type in ['cirl_w_hard_rc']:
         for random_human in [False]:
             r_h_str = 'sto'
             if random_human is False:
                 r_h_str = 'opt'
 
             ax = axes_list[ax_counter]
-            ax.spines['top'].set_visible(False)
-            ax.spines['right'].set_visible(False)
-            # ax.spines['bottom'].set_visible(False)
-            # ax.spines['left'].set_visible(False)
             task_human_to_ax[(task_type, random_human)] = ax
             ax_counter += 1
             # for replan_type in ['wo_replan', 'w_replan']:
@@ -1426,7 +1421,6 @@ def plot_round_results_same_plan_diff_learning_boltz_circle_2():
                 data = get_data(foldername, global_seed, experiment_number, task_type, exploration_type,
                                 replan_type, random_human, num_exps)
                 aggregate_data_over_rounds = {round_no: [] for round_no in range(-1, 3)}
-                # cvi_percents = []
                 for exp_num in range(num_exps):
                     exp_results = data[exp_num]['results']
                     exp_config = data[exp_num]['config']
@@ -1452,9 +1446,8 @@ def plot_round_results_same_plan_diff_learning_boltz_circle_2():
                         # aggregate_data_over_rounds[round_no].append(max(0, final_reward / optimal_rew))
                         # final_reward_per_round.append(final_reward/optimal_rew)
                         aggregate_data_over_rounds[round_no].append(max(0,final_reward / optimal_rew))
-                        # cvi_percents.append(max(0,final_reward / optimal_rew))
 
-                # print("cvi_percents", cvi_percents)
+
 
 
                 mean_aggregate_data_over_rounds = {round_no: np.mean(aggregate_data_over_rounds[round_no]) for
@@ -1488,9 +1481,9 @@ def plot_round_results_same_plan_diff_learning_boltz_circle_2():
                 #                 alpha=0.5, edgecolor=color_to_plot_with, facecolor=color_to_plot_with)
                 ax.errorbar(range(len(percents_means)), percents_means, yerr=percents_stds, linewidth=2,
                             color=color_to_plot_with,
-                            fillstyle='full', marker='o', markersize=5, markeredgecolor=color_to_plot_with, alpha=1.0,
-                            markeredgewidth=2, linestyle='--', elinewidth=2,
-                            markerfacecolor=color_to_plot_with, label=f'{algo}, {exploration_type}')
+                            fillstyle='full', marker='o', markersize=7, markeredgecolor=color_to_plot_with, alpha=0.6,
+                            markeredgewidth=2,
+                            markerfacecolor='white', label=f'{algo}, {exploration_type}')
             # if ax_counter == 1:
             #     ax.legend(loc='lower right')
 
@@ -1498,7 +1491,7 @@ def plot_round_results_same_plan_diff_learning_boltz_circle_2():
                                   'cirl_w_easy_rc': 'Intuitive RC',
                                   'cirl_w_hard_rc': 'Permuted RC'}
 
-            ax.set_title(f"{task_type_to_title[task_type]}")
+            ax.set_title(f"{task_type_to_title[task_type]}, \nNoiseless Human")
             if ax == ax3:
 
                 ax.legend(loc='lower right')
@@ -1506,7 +1499,7 @@ def plot_round_results_same_plan_diff_learning_boltz_circle_2():
             ax.set_ylabel("Percent of Optimal Reward")
             # ax.set_ylim([0, 1.01])
 
-    plt.savefig("test_exp7_opt_7.png")
+    plt.savefig("exp7_opt_7.png")
 
     plt.close()
 

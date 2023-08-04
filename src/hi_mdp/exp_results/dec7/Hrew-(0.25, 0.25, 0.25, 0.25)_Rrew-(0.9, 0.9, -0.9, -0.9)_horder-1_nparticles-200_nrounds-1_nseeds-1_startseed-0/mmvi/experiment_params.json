@@ -1,1 +1,0 @@
-{"vi_type": "mmvi", "n_seeds": 1, "true_human_order": 1, "robot_rewards": [0.9, 0.9, -0.9, -0.9], "human_rewards": [0.25, 0.25, 0.25, 0.25], "num_particles": 200, "exp_path": "Hrew-(0.25, 0.25, 0.25, 0.25)_Rrew-(0.9, 0.9, -0.9, -0.9)_horder-1_nparticles-200_nrounds-1_nseeds-1_startseed-0", "num_rounds": 1, "list_of_random_seeds": [68268]}

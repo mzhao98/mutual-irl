@@ -9,16 +9,19 @@ import random
 import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
-from robot_model_cirl_prag_ped import Robot
-# from robot_model_cirl_baseline_exp1 import Robot
-# from robot_model_cirl_baseline_2_exp1 import Robot
-# from robot_model_birl_rew_saved_exp1 import Robot
-# from robot_model_cirl_baseline import Robot
-# from robot_model_maxent_baseline import Robot
-# from robot_model_fixed_lstm import Robot
-# from robot_model_fcn import Robot
-# from robot_model_birl_prob_plan_out import Robot
-# from robot_model_lstm_rew import Robot
+
+# from robot_1_birl_bsp_ig import Robot
+# from robot_2_birl_bsp import Robot
+# from robot_3_birl_maxplan import Robot
+# from robot_4_birl_maxplan_ig import Robot
+from robot_5_pedbirl_pragplan import Robot as Pragmatic_Robot_Human
+# from robot_6_pedbirl_taskbsp import Robot
+# from robot_7_taskbirl_pragplan import Robot
+# from robot_8_birlq_bsp_ig import Robot
+# from robot_9_birlq_bsp import Robot
+from robot_10_maxent_maxplan import Robot
+
+
 from human_model import Greedy_Human, Collaborative_Human, Suboptimal_Collaborative_Human
 # import seaborn as sns
 # import matplotlib.cm as cm
@@ -592,12 +595,16 @@ class Simultaneous_Cleanup():
         round_no = -1
         game_results[round_no] = {'traj': [], 'rewards':[], 'beliefs':[], 'final_reward':0}
         # print(f"\n\nRound = {round_no}")
-        if type(self.robot) == Robot:
-            self.robot.setup_value_iteration()
-        if type(self.human) == Robot:
-            self.human.setup_value_iteration()
+        # if type(self.robot) == Robot:
+        #     self.robot.setup_value_iteration()
+        # if type(self.human) == Robot:
+        #     self.human.setup_value_iteration()
+
+        self.robot.setup_value_iteration()
+        self.human.setup_value_iteration()
 
         self.robot.reset_belief_history()
+        self.human.reset_belief_history()
 
         # print("self.robot.beliefs", self.robot.beliefs)
         # print(f"true = {self.robot.true_human_rew_idx}, beliefs = {self.robot.beliefs[self.robot.true_human_rew_idx]}")
@@ -632,7 +639,8 @@ class Simultaneous_Cleanup():
             # robot_action = self.robot.act_old(current_state)
             is_start = False
             # print("current_state for human acting", current_state)
-            human_action = self.human.act(current_state, round_no)
+            # human_action = self.human.act(current_state, round_no)
+            human_action = self.human.act_human(current_state, round_no)
 
             game_results[round_no]['traj'].append((current_state, robot_action, human_action))
 
@@ -666,12 +674,15 @@ class Simultaneous_Cleanup():
         for round_no in range(num_rounds):
             game_results[round_no] = {'traj': [], 'rewards':[], 'beliefs':[], 'final_reward':0}
             # print(f"\n\nRound = {round_no}")
-            if type(self.robot) == Robot:
-                self.robot.setup_value_iteration()
-            if type(self.human) == Robot:
-                self.human.setup_value_iteration()
+            # if type(self.robot) == Robot:
+            #     self.robot.setup_value_iteration()
+            # if type(self.human) == Robot:
+            #     self.human.setup_value_iteration()
+            self.robot.setup_value_iteration()
+            self.human.setup_value_iteration()
 
             self.robot.reset_belief_history()
+            self.human.reset_belief_history()
 
             # print("self.robot.beliefs", self.robot.beliefs)
             # print(f"true = {self.robot.true_human_rew_idx}, beliefs = {self.robot.beliefs[self.robot.true_human_rew_idx]}")
@@ -715,7 +726,7 @@ class Simultaneous_Cleanup():
                 # robot_action = self.robot.act_old(current_state)
                 is_start = False
                 # print("current_state for human acting", current_state)
-                human_action = self.human.act(current_state, round_no)
+                human_action = self.human.act_human(current_state, round_no)
 
                 if hasattr(self.robot, 'human_lstm'):
                     # print("LSTM ROBOT")
@@ -773,15 +784,19 @@ class Simultaneous_Cleanup():
                 if hasattr(self.robot, 'human_lstm') is False:
                     if type(self.robot) == Robot:
                         self.robot.update_based_on_h_action(current_state, robot_action, human_action)
+                        self.human.update_based_on_h_action(current_state, robot_action, human_action)
 
                 if hasattr(self.robot, 'human_lstm'):
                     if prev_robot_action is not None:
                         if type(self.robot) == Robot:
                             self.robot.update_based_on_h_action(current_state, prev_robot_action, human_action)
 
+
+
                 if replan_online:
                     if type(self.robot) == Robot:
                         self.robot.setup_value_iteration()
+                        self.human.setup_value_iteration()
 
                 prev_robot_action = robot_action
 
@@ -1150,8 +1165,8 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
         #     # (YELLOW, 1): np.random.randint(3,10)
         # }
         # robot_rew = {
-        #     (BLUE, 0): np.random.randint(-10, 10),
-        #     (RED, 0): np.random.randint(-10, 10),
+        #     # (BLUE, 0): np.random.randint(-10, 10),
+        #     (RED, 0): np.random.randint(3, 10),
         #     (BLUE, 1): np.random.randint(3, 10),
         #     (RED, 1): np.random.randint(3, 10),
         #     # (YELLOW, 1): np.random.randint(3,10)
@@ -1189,8 +1204,8 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     # starting_objects = [all_objects[i] for i in np.random.choice(np.arange(len(all_objects)), size=n_objects, replace=True)]
     starting_objects = []
     for object in all_objects:
-        count = np.random.randint(1, 3)
-        # count = 1
+        # count = np.random.randint(1, 3)
+        count = 1
         # if object[1] == 0:
         #     count = 1
         for c in range(count):
@@ -1227,8 +1242,10 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
 
     robot = Robot(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=False, permutes=permutes,
                   vi_type='cvi', is_collaborative_human=True, update_threshold=update_threshold)
-    human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha,
-                                           h_deg_collab=random_h_deg_collab)
+    # human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha,
+    #                                        h_deg_collab=random_h_deg_collab)
+    human = Pragmatic_Robot_Human(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=False, permutes=permutes,
+                  vi_type='cvi', is_collaborative_human=True, update_threshold=update_threshold)
     robot.setup_value_iteration()
     env = Simultaneous_Cleanup(robot, human, starting_objects)
     cvi_rew, cvi_human_rew, cvi_robot_rew, multiround_belief_history, \
@@ -2668,24 +2685,23 @@ def run_experiment_random_human_without_multiprocess():
 
 if __name__ == "__main__":
     # eval_threshold()
+    robot_type = 'robot_10_maxent_maxplan'
+    human_type = 'boltz_prag_h_binf_actual_hv_1'
 
     global_seed = 0
-    experiment_number = '15_coirl_noiseless_human'
+    experiment_number = f'2_1_3objs1_{robot_type}_{human_type}_human'
     # experiment_number = 'testing'
     # experiment_number = '7_baseline-cirl_boltz_human'
     # experiment_number = '7_coirl_birl-cirl_boltz_human'
-    task_type = 'cirl_w_hard_rc' # ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']
+    # task_type = 'cirl_w_hard_rc' # ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']
     # exploration_type = 'wo_expl'
     # replan_type = 'wo_replan' # ['wo_replan', 'w_replan']
     # random_human = False
     num_exps = 100
-    for replan_type in ['w_replan']:
-        for exploration_type in ['wo_expl']:
-            for random_human in [False]:
-                run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
-                # run_experiment_without_multiprocess(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
+    replan_type = 'w_replan'
+    exploration_type = 'wo_expl'
+    random_human = False
+    # for task_type in ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']:
+    for task_type in ['cirl_w_hard_rc']:
+        run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
 
-    # run_experiment_without_multiprocess()
-    # run_experiment_random_human_without_multiprocess()
-    # evaluate_thresholds()
-    # evaluate_human_alphas()

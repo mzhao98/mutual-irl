@@ -9,16 +9,19 @@ import random
 import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
-from robot_model_cirl_prag_ped import Robot
-# from robot_model_cirl_baseline_exp1 import Robot
-# from robot_model_cirl_baseline_2_exp1 import Robot
-# from robot_model_birl_rew_saved_exp1 import Robot
-# from robot_model_cirl_baseline import Robot
-# from robot_model_maxent_baseline import Robot
-# from robot_model_fixed_lstm import Robot
-# from robot_model_fcn import Robot
-# from robot_model_birl_prob_plan_out import Robot
-# from robot_model_lstm_rew import Robot
+
+# from robot_1_birl_bsp_ig import Robot
+# from robot_2_birl_bsp import Robot
+# from robot_3_birl_maxplan import Robot
+# from robot_4_birl_maxplan_ig import Robot
+from robot_5_pedbirl_pragplan import Robot
+# from robot_6_pedbirl_taskbsp import Robot
+# from robot_7_taskbirl_pragplan import Robot
+# from robot_8_birlq_bsp_ig import Robot
+# from robot_9_birlq_bsp import Robot
+# from robot_10_maxent_maxplan import Robot
+
+
 from human_model import Greedy_Human, Collaborative_Human, Suboptimal_Collaborative_Human
 # import seaborn as sns
 # import matplotlib.cm as cm
@@ -799,6 +802,8 @@ class Simultaneous_Cleanup():
                 # max_key = max(self.robot.beliefs, key=lambda keyname: self.robot.beliefs[keyname]['prob'])
                 # max_prob_hyp = self.robot.beliefs[max_key]['reward_dict']
                 # max_prob = self.robot.beliefs[max_key]['prob']
+                # print("True human reward, ", self.human.ind_rew)
+                # print("True robot reward, ", self.robot.ind_rew)
                 # print("new robot beliefs = ", max_prob_hyp)
                 # print("new robot beliefs prob = ", max_prob)
                 # print("done = ", done)
@@ -1032,7 +1037,7 @@ def plot_multiround_belief_history(multiround_belief_history, all_objects):
         os.remove(folder + file_name)
 
 
-def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_human, replan_online, use_exploration, task_type):
+def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_human, replan_online, use_exploration, task_type, beta):
     print("exp_num = ", exp_num)
     # np.random.seed(1)
 
@@ -1054,6 +1059,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     # seed = 38290113
     experiment_config = {}
     experiment_config['seed'] = seed
+    experiment_config['beta'] = beta
 
     np.random.seed(seed)
     pref = np.random.choice([0, 1])
@@ -1082,6 +1088,14 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
         (RED, 1): np.random.randint(3, 10),
         # (YELLOW, 1): np.random.randint(3,10)
     }
+    # scalar = 2
+    # human_rew = {
+    #     # (BLUE, 0): np.random.randint(3, 10),
+    #     (RED, 0): np.random.randint(8, 9),
+    #     (BLUE, 1): np.random.randint(9, 10),
+    #     (RED, 1): np.random.randint(2, 3),
+    #     # (YELLOW, 1): np.random.randint(3,10)
+    # }
 
 
     # human_rew = {
@@ -1141,7 +1155,16 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     human_rew_values = list(permutes[np.random.choice(np.arange(len(permutes)))])
     object_keys = list(human_rew.keys())
     if task_type == 'cirl_w_hard_rc':
-        robot_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
+        # robot_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
+
+        # robot_rew = {
+        #     # (BLUE, 0): np.random.randint(3, 10),
+        #     (RED, 0): np.random.randint(6,7),
+        #     (BLUE, 1): np.random.randint(5, 6),
+        #     (RED, 1): np.random.randint(5, 6),
+        #     # (YELLOW, 1): np.random.randint(3,10)
+        # }
+
         # robot_rew = {
         #     (BLUE, 0): np.random.randint(-5, 5),
         #     (RED, 0): np.random.randint(-5, 5),
@@ -1149,13 +1172,13 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
         #     (RED, 1): np.random.randint(3, 5),
         #     # (YELLOW, 1): np.random.randint(3,10)
         # }
-        # robot_rew = {
-        #     (BLUE, 0): np.random.randint(-10, 10),
-        #     (RED, 0): np.random.randint(-10, 10),
-        #     (BLUE, 1): np.random.randint(3, 10),
-        #     (RED, 1): np.random.randint(3, 10),
-        #     # (YELLOW, 1): np.random.randint(3,10)
-        # }
+        robot_rew = {
+            # (BLUE, 0): np.random.randint(-10, 10),
+            (RED, 0): np.random.randint(3, 10),
+            (BLUE, 1): np.random.randint(3, 10),
+            (RED, 1): np.random.randint(3, 10),
+            # (YELLOW, 1): np.random.randint(3,10)
+        }
 
     experiment_config['robot_rew'] = robot_rew
     experiment_config['human_rew'] = human_rew
@@ -1189,8 +1212,8 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     # starting_objects = [all_objects[i] for i in np.random.choice(np.arange(len(all_objects)), size=n_objects, replace=True)]
     starting_objects = []
     for object in all_objects:
-        count = np.random.randint(1, 3)
-        # count = 1
+        # count = np.random.randint(1, 3)
+        count = 1
         # if object[1] == 0:
         #     count = 1
         for c in range(count):
@@ -1226,7 +1249,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     # print("Fully 2 greedy final_team_rew = ", greedy_team_rew)
 
     robot = Robot(team_rew, robot_rew, human_rew, starting_objects, robot_knows_human_rew=False, permutes=permutes,
-                  vi_type='cvi', is_collaborative_human=True, update_threshold=update_threshold)
+                  vi_type='cvi', is_collaborative_human=True, update_threshold=update_threshold, beta=beta)
     human = Suboptimal_Collaborative_Human(human_rew, robot_rew, starting_objects, h_alpha=random_h_alpha,
                                            h_deg_collab=random_h_deg_collab)
     robot.setup_value_iteration()
@@ -1306,7 +1329,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
            cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal_to_max, lstm_accuracies_list, experiment_results
 
 
-def run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps, belief_threshold=0.9):
+def run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps, beta, belief_threshold=0.9):
     np.random.seed(global_seed)
     task_reward = [1, 1, 1, 1]
 
@@ -1336,7 +1359,7 @@ def run_experiment(global_seed, experiment_number, task_type, exploration_type, 
     if exploration_type == 'wo_expl':
         use_exploration = False
 
-    experiment_name = f'exp-{experiment_number}_nexps-{num_exps}_globalseed-{global_seed}_task-{task_type}_explore-{exploration_type}_replan-{replan_type}_h-{r_h_str}_thresh-{belief_threshold}'
+    experiment_name = f'exp-{experiment_number}_nexps-{num_exps}_globalseed-{global_seed}_task-{task_type}_explore-{exploration_type}_replan-{replan_type}_h-{r_h_str}_thresh-{belief_threshold}_beta-{beta}'
     path = f"results/{experiment_name}"
     # Check whether the specified path exists or not
     isExist = os.path.exists(path)
@@ -1434,7 +1457,7 @@ def run_experiment(global_seed, experiment_number, task_type, exploration_type, 
     experiment_num_to_results = {exp_num: {} for exp_num in range(num_exps)}
 
     with Pool(processes=num_exps) as pool:
-        k_round_results = pool.starmap(run_k_rounds, [(exp_num, task_reward, random_seeds[exp_num], h_alpha, update_threshold, random_human, replan_online, use_exploration, task_type) for exp_num in range(num_exps)])
+        k_round_results = pool.starmap(run_k_rounds, [(exp_num, task_reward, random_seeds[exp_num], h_alpha, update_threshold, random_human, replan_online, use_exploration, task_type, beta) for exp_num in range(num_exps)])
         for result in k_round_results:
             cvi_percent_of_opt_team, stdvi_percent_of_opt_team, cvi_percent_of_opt_human, stdvi_percent_of_opt_human, \
             cvi_percent_of_opt_robot, stdvi_percent_of_opt_robot, altruism_case, percent_opt_each_round, max_prob_is_correct, max_prob_is_close, num_equal, lstm_accuracies_list, exp_results_dict = result
@@ -1489,6 +1512,7 @@ def run_experiment(global_seed, experiment_number, task_type, exploration_type, 
         pickle.dump(experiment_num_to_results, fp)
 
     aggregate_results = {}
+    aggregate_results['beta'] = beta
     aggregate_results['cvi_percents'] = cvi_percents
     aggregate_results['stdvi_percents'] = stdvi_percents
     aggregate_results['percent_change'] = percent_change
@@ -2668,24 +2692,26 @@ def run_experiment_random_human_without_multiprocess():
 
 if __name__ == "__main__":
     # eval_threshold()
+    robot_type = 'robot_5_pedbirl_pragplan'
+    human_type = 'noiseless'
 
     global_seed = 0
-    experiment_number = '15_coirl_noiseless_human'
+    experiment_number = f'ablateb_3objs1_{robot_type}_{human_type}_human'
     # experiment_number = 'testing'
     # experiment_number = '7_baseline-cirl_boltz_human'
     # experiment_number = '7_coirl_birl-cirl_boltz_human'
-    task_type = 'cirl_w_hard_rc' # ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']
+    # task_type = 'cirl_w_hard_rc' # ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']
     # exploration_type = 'wo_expl'
     # replan_type = 'wo_replan' # ['wo_replan', 'w_replan']
     # random_human = False
-    num_exps = 100
-    for replan_type in ['w_replan']:
-        for exploration_type in ['wo_expl']:
-            for random_human in [False]:
-                run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
-                # run_experiment_without_multiprocess(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps)
+    num_exps = 50
+    replan_type = 'w_replan'
+    exploration_type = 'wo_expl'
+    random_human = False
+    # for task_type in ['cirl', 'cirl_w_easy_rc', 'cirl_w_hard_rc']:
+    # for task_type in ['cirl_w_hard_rc']:
+    task_type = 'cirl_w_hard_rc'
+    # for beta in [1, 2.5, 5, 15]:
+    beta = 15
+    run_experiment(global_seed, experiment_number, task_type, exploration_type, replan_type, random_human, num_exps, beta)
 
-    # run_experiment_without_multiprocess()
-    # run_experiment_random_human_without_multiprocess()
-    # evaluate_thresholds()
-    # evaluate_human_alphas()

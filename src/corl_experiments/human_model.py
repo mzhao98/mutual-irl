@@ -352,7 +352,7 @@ class Suboptimal_Collaborative_Human:
         other_actions = []
         max_reward = -2
         h_action = None
-        beta = 15
+        beta = 1
         h_action_to_boltz_prob = {}
 
         for (candidate_r_act, candidate_h_act) in self.possible_actions:
@@ -391,6 +391,66 @@ class Suboptimal_Collaborative_Human:
 
             if h_action not in other_actions:
                 other_actions.append(h_action)
+
+        sum_Z = 0
+        for candidate_h_act in h_action_to_boltz_prob:
+            h_action_to_boltz_prob[candidate_h_act] = np.round(np.exp(beta * h_action_to_boltz_prob[candidate_h_act]),5)
+            sum_Z += h_action_to_boltz_prob[candidate_h_act]
+
+        if sum_Z == 0:
+            for candidate_h_act in h_action_to_boltz_prob:
+                h_action_to_boltz_prob[candidate_h_act] = 1/len(h_action_to_boltz_prob)
+        else:
+            for candidate_h_act in h_action_to_boltz_prob:
+                h_action_to_boltz_prob[candidate_h_act] = h_action_to_boltz_prob[candidate_h_act]/sum_Z
+
+        h_action_keys = list(h_action_to_boltz_prob.keys())
+        probs = list(h_action_to_boltz_prob.values())
+        # print()
+        # print("h_action_to_boltz_prob", h_action_to_boltz_prob)
+        # print("probs", probs)
+        # if round_no < 5:
+        h_action = h_action_keys[np.random.choice(np.arange(len(h_action_keys)), p=probs)]
+        # print("h_action", h_action)
+        #
+        # if len(best_human_act) == 0:
+        #     h_action = None
+        # else:
+        #     # h_action = best_human_act[np.random.choice(range(len(best_human_act)))]
+        #     h_action = best_human_act[0]
+        #
+        # print("best h_action", h_action)
+        # print(f"Other {other_actions} removing {h_action}")
+        # other_actions.remove(h_action)
+        # r = np.random.uniform(0, 1)
+        # if round_no < 5 and r < self.h_alpha:
+        #     if len(other_actions) > 0:
+        #         # print("Using random")
+        #         h_action = other_actions[np.random.choice(np.arange(len(other_actions)))]
+
+        return h_action
+
+    def act_ood(self, state, round_no=0):
+        # best_human_act = []
+        other_actions = []
+        max_reward = -2
+        h_action = None
+        beta = 1
+        h_action_to_boltz_prob = {}
+
+        for (candidate_r_act, candidate_h_act) in self.possible_actions:
+            team_rew, r_rew, h_rew = self.step_given_state(state, (candidate_r_act, candidate_h_act))
+            # print("(candidate_r_act, candidate_h_act)", (candidate_r_act, candidate_h_act))
+            candidate_rew = team_rew + ((self.h_deg_collab*100) * r_rew) + ((1-self.h_deg_collab) * 100 * h_rew)
+            # candidate_rew = team_rew + ((1 - self.h_deg_collab) * 100 * h_rew)
+            if self.h_deg_collab == 0.5:
+                candidate_rew = team_rew + (r_rew) + (h_rew)
+            if candidate_h_act not in h_action_to_boltz_prob:
+                h_action_to_boltz_prob[candidate_h_act] = 0
+            h_action_to_boltz_prob[candidate_h_act] += candidate_rew
+
+        h_action_idx = np.argmax(list(h_action_to_boltz_prob.values()))
+        h_action = list(h_action_to_boltz_prob.keys())[h_action_idx]
 
         sum_Z = 0
         for candidate_h_act in h_action_to_boltz_prob:
