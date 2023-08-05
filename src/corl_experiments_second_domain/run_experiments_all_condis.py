@@ -1167,8 +1167,15 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     human_rew_values = list(permutes[np.random.choice(np.arange(len(permutes)))])
     object_keys = list(human_rew.keys())
     if task_type == 'cirl_w_hard_rc':
-        robot_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
-        robot_rew = copy.deepcopy(human_rew)
+        # robot_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
+        # robot_rew = copy.deepcopy(human_rew)
+        robot_rew = {
+            (BLUE, 0): np.random.randint(5, 30),
+            (RED, 0): np.random.randint(5, 30),
+            (GREEN, 0): np.random.randint(5, 30),
+            # (YELLOW, 0): np.random.randint(3, 10),
+            # (YELLOW, 1): np.random.randint(3,10)
+        }
         # robot_rew = {
         #     (BLUE, 0): human_rew[(BLUE, 0)]-5,
         #     (RED, 0): human_rew[(RED, 0)]-5,
@@ -1240,7 +1247,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     max_key = max(human_rew, key=lambda k: human_rew[k])
     random_obj = max_key
     obj_type_to_count[random_obj] = 1
-    robot_rew[random_obj] -= 2
+    # robot_rew[random_obj] -= 2
 
     for object in obj_type_to_count:
         count = obj_type_to_count[object]
@@ -2719,20 +2726,20 @@ def run_experiment_random_human_without_multiprocess():
 
 if __name__ == "__main__":
     # eval_threshold()
-    robot_type = 'robot_2_birl_bsp'
+    robot_type = 'robot_1_birl_bsp_ig'
 
     # human_types = ['noiseless', 'boltz']
     task_types = ['cirl_w_hard_rc']
     exploration_types = ['wo_expl']
-    human_type = 'boltz_binf_pmf'
+    human_type = 'boltz_b1'
 
     global_seed = 0
-    num_exps = 5
+    num_exps = 50
     replan_type = 'w_replan'
     random_human = False
 
     # for human_type in human_types:
-    experiment_number = f'domain2_4objs0_{robot_type}_{human_type}_human'
+    experiment_number = f'domain2_3objs5_{robot_type}_{human_type}_human'
     # f'2_1_3objs1_{robot_type}_{human_type}_human'
     # experiment_number = 'testing'
     # experiment_number = '7_baseline-cirl_boltz_human'

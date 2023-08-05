@@ -296,7 +296,9 @@ class Robot:
                     if state_remaining_objects[robot_action] == 0:
                         robot_rew, human_rew = 0, 0
                     elif state_remaining_objects[robot_action] == 1:
-                        human_rew += 0
+                        state_remaining_objects[robot_action] -= 1
+                        robot_rew += self.ind_rew[robot_action]
+                        # human_rew += 0
                         # state_remaining_objects[robot_action] -= 1
                         #
                         # pickup_agent = np.random.choice(['r', 'h'])
@@ -368,9 +370,10 @@ class Robot:
                         robot_rew += 0
                         human_rew += 0
                     elif state_remaining_objects[robot_action] == 1:
-                        # state_remaining_objects[robot_action] -= 1
+                        state_remaining_objects[robot_action] -= 1
+                        robot_rew += self.ind_rew[robot_action]
                         # human_rew += human_reward[human_action]
-                        human_rew += 0
+                        # human_rew += 0
                         # pickup_agent = np.random.choice(['r', 'h'])
                         # if pickup_agent == 'r':
                         #     robot_rew += self.ind_rew[robot_action]
@@ -435,7 +438,9 @@ class Robot:
                     elif state_remaining_objects[robot_action] == 1:
                         # state_remaining_objects[robot_action] -= 1
                         # human_rew += human_reward[human_action]
-                        human_rew += 0
+                        # human_rew += 0
+                        state_remaining_objects[robot_action] -= 1
+                        robot_rew += self.ind_rew[robot_action]
                         # pickup_agent = np.random.choice(['r', 'h'])
                         # if pickup_agent == 'r':
                         #     robot_rew += self.ind_rew[robot_action]
@@ -482,8 +487,12 @@ class Robot:
         if human_action is not None:
             if human_action in state_remaining_objects:
                 if state_remaining_objects[human_action] > 0:
-                    state_remaining_objects[human_action] -= 1
-                    human_rew += human_reward[human_action]
+                    if human_action == robot_action and state_remaining_objects[human_action] == 1:
+                        state_remaining_objects[robot_action] -= 1
+                        robot_rew = self.ind_rew[robot_action]  # robot takes object
+                    else:
+                        state_remaining_objects[human_action] -= 1
+                        human_rew += human_reward[human_action]
 
         done = False
         if sum(state_remaining_objects.values()) == 0:
@@ -1220,8 +1229,8 @@ class Robot:
 
         boltz_action_distribution = np.array([np.exp(self.beta * q) for q in action_distribution])
         boltz_action_distribution = boltz_action_distribution / np.sum(boltz_action_distribution)
-        # best_action_idx = np.argmax(action_distribution)
-        best_action_idx = np.random.choice(np.arange(len(boltz_action_distribution)), p=boltz_action_distribution)
+        best_action_idx = np.argmax(action_distribution)
+        # best_action_idx = np.random.choice(np.arange(len(boltz_action_distribution)), p=boltz_action_distribution)
         best_action = self.idx_to_action[best_action_idx]
         h_action = best_action[1]
         # h_action = self.possible_actions[best_action_idx]

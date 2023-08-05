@@ -608,7 +608,8 @@ class Robot:
                     if state_remaining_objects[robot_action] == 0:
                         robot_rew, human_rew = 0, 0
                     elif state_remaining_objects[robot_action] == 1:
-                        human_rew += 0
+                        state_remaining_objects[robot_action] -= 1
+                        robot_rew += self.ind_rew[robot_action]
                         # state_remaining_objects[robot_action] -= 1
 
                         # pickup_agent = np.random.choice(['r', 'h'])
@@ -682,7 +683,8 @@ class Robot:
                     elif state_remaining_objects[robot_action] == 1:
                         # state_remaining_objects[robot_action] -= 1
                         # human_rew += human_reward[human_action]
-                        human_rew += 0
+                        state_remaining_objects[robot_action] -= 1
+                        robot_rew += self.ind_rew[robot_action]
                         # pickup_agent = np.random.choice(['r', 'h'])
                         # if pickup_agent == 'r':
                         #     robot_rew += self.ind_rew[robot_action]
@@ -747,7 +749,8 @@ class Robot:
                     elif state_remaining_objects[robot_action] == 1:
                         # state_remaining_objects[robot_action] -= 1
                         # human_rew += human_reward[human_action]
-                        human_rew += 0
+                        state_remaining_objects[robot_action] -= 1
+                        robot_rew += self.ind_rew[robot_action]
                         # pickup_agent = np.random.choice(['r', 'h'])
                         # if pickup_agent == 'r':
                         #     robot_rew += self.ind_rew[robot_action]
@@ -794,8 +797,12 @@ class Robot:
         if human_action is not None:
             if human_action in state_remaining_objects:
                 if state_remaining_objects[human_action] > 0:
-                    state_remaining_objects[human_action] -= 1
-                    human_rew += human_reward[human_action]
+                    if human_action == robot_action and state_remaining_objects[human_action] == 1:
+                        state_remaining_objects[robot_action] -= 1
+                        robot_rew = self.ind_rew[robot_action]  # robot takes object
+                    else:
+                        state_remaining_objects[human_action] -= 1
+                        human_rew += human_reward[human_action]
 
         done = False
         if sum(state_remaining_objects.values()) == 0:

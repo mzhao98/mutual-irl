@@ -1085,9 +1085,9 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     experiment_config['pref'] = pref
 
     human_rew = {
-        (BLUE, 0): np.random.randint(3, 10),
-        (RED, 0): np.random.randint(3, 10),
-        (GREEN, 0): np.random.randint(3, 10),
+        (BLUE, 0): np.random.randint(5, 30),
+        (RED, 0): np.random.randint(5, 30),
+        (GREEN, 0): np.random.randint(5, 30),
         # (YELLOW, 1): np.random.randint(3,10)
     }
 
@@ -1149,10 +1149,16 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     object_keys = list(human_rew.keys())
     if task_type == 'cirl_w_hard_rc':
         # robot_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
+        # robot_rew = {
+        #     (BLUE, 0): human_rew[(BLUE, 0)] - 1,
+        #     (RED, 0): human_rew[(RED, 0)] - 1,
+        #     (GREEN, 0): human_rew[(GREEN, 0)] - 1,
+        # }
         robot_rew = {
-            (BLUE, 0): human_rew[(BLUE, 0)] - 1,
-            (RED, 0): human_rew[(RED, 0)] - 1,
-            (GREEN, 0): human_rew[(GREEN, 0)] - 1,
+            (BLUE, 0): np.random.randint(5, 30),
+            (RED, 0): np.random.randint(5, 30),
+            (GREEN, 0): np.random.randint(5, 30),
+            # (YELLOW, 1): np.random.randint(3,10)
         }
         # robot_rew = {
         #     # (BLUE, 0): np.random.randint(-10, 10),
@@ -1207,15 +1213,24 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     n_objects = np.random.randint(4, 10)
     # starting_objects = [all_objects[i] for i in np.random.choice(np.arange(len(all_objects)), size=n_objects, replace=True)]
     starting_objects = []
+    obj_type_to_count = {}
     for object in all_objects:
-        # count = np.random.randint(1, 4)
-        count = 1
+        count = np.random.randint(2, 5)
+        obj_type_to_count[object] = count
+        # count = 1
         # if object[1] == 0:
         #     count = 1
+    # if 1 not in list(obj_type_to_count.values()):
+    max_key = max(human_rew, key=lambda k: human_rew[k])
+    random_obj = max_key
+    obj_type_to_count[random_obj] = 1
+    # robot_rew[random_obj] -= 2
+
+    for object in obj_type_to_count:
+        count = obj_type_to_count[object]
         for c in range(count):
             starting_objects.append(object)
-    # starting_objects = [(BLUE, 0), (RED, 0), (BLUE, 1), (RED, 1),(BLUE, 0), (RED, 0), (BLUE, 1), (RED, 1)]
-    #
+
     experiment_config['starting_objects'] = starting_objects
     #
     # print()
@@ -2688,10 +2703,10 @@ def run_experiment_random_human_without_multiprocess():
 if __name__ == "__main__":
     # eval_threshold()
     robot_type = 'robot_5_pedbirl_pragplan'
-    human_type = 'boltz_prag_h_b1_actual_hv_1'
+    human_type = 'boltz_prag_h_binf_actual_hv_1'
 
     global_seed = 0
-    experiment_number = f'domain2_4objs0_{robot_type}_{human_type}_human'
+    experiment_number = f'domain2_3objs5_{robot_type}_{human_type}_human'
     # experiment_number = 'testing'
     # experiment_number = '7_baseline-cirl_boltz_human'
     # experiment_number = '7_coirl_birl-cirl_boltz_human'
@@ -2699,7 +2714,7 @@ if __name__ == "__main__":
     # exploration_type = 'wo_expl'
     # replan_type = 'wo_replan' # ['wo_replan', 'w_replan']
     # random_human = False
-    num_exps = 5
+    num_exps = 50
     replan_type = 'w_replan'
     exploration_type = 'wo_expl'
     random_human = False
