@@ -1094,9 +1094,9 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     experiment_config['pref'] = pref
 
     human_rew = {
-        (BLUE, 0): np.random.randint(5, 30),
-        (RED, 0): np.random.randint(5, 30),
-        (GREEN, 0): np.random.randint(5, 30),
+        (BLUE, 0): np.random.uniform(3, 11),
+        (RED, 0): np.random.uniform(3, 11),
+        (GREEN, 0): np.random.uniform(3, 11),
         # (YELLOW, 1): np.random.randint(3,10)
     }
 
@@ -1164,9 +1164,9 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
         #     (GREEN, 0): human_rew[(GREEN, 0)] - 1,
         # }
         robot_rew = {
-            (BLUE, 0): np.random.randint(5, 30),
-            (RED, 0): np.random.randint(5, 30),
-            (GREEN, 0): np.random.randint(5, 30),
+            (BLUE, 0): np.random.uniform(3, 11),
+            (RED, 0): np.random.uniform(3, 11),
+            (GREEN, 0): np.random.uniform(3, 11),
             # (YELLOW, 1): np.random.randint(3,10)
         }
         # robot_rew = {
@@ -1230,9 +1230,9 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
         # if object[1] == 0:
         #     count = 1
     # if 1 not in list(obj_type_to_count.values()):
-    max_key = max(human_rew, key=lambda k: human_rew[k])
-    random_obj = max_key
-    obj_type_to_count[random_obj] = 1
+    # max_key = max(human_rew, key=lambda k: human_rew[k])
+    # random_obj = max_key
+    # obj_type_to_count[random_obj] = 1
     # robot_rew[random_obj] -= 2
 
     for object in obj_type_to_count:
@@ -2714,7 +2714,7 @@ def run_experiment_random_human_without_multiprocess():
 if __name__ == "__main__":
     # eval_threshold()
     robot_type = 'robot_2_birl_bsp'
-    human_type = 'boltz_prag_h_binf_actual_hv_1'
+    human_type = 'boltz_prag_h_b1_actual_hv_1'
 
     global_seed = 0
     experiment_number = f'domain2_3objs5_{robot_type}_{human_type}_human'

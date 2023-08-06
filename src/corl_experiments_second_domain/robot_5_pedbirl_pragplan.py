@@ -1229,8 +1229,8 @@ class Robot:
 
         boltz_action_distribution = np.array([np.exp(self.beta * q) for q in action_distribution])
         boltz_action_distribution = boltz_action_distribution / np.sum(boltz_action_distribution)
-        best_action_idx = np.argmax(action_distribution)
-        # best_action_idx = np.random.choice(np.arange(len(boltz_action_distribution)), p=boltz_action_distribution)
+        # best_action_idx = np.argmax(action_distribution)
+        best_action_idx = np.random.choice(np.arange(len(boltz_action_distribution)), p=boltz_action_distribution)
         best_action = self.idx_to_action[best_action_idx]
         h_action = best_action[1]
         # h_action = self.possible_actions[best_action_idx]

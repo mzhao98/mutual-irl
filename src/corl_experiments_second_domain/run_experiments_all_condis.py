@@ -1094,9 +1094,9 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     experiment_config['pref'] = pref
 
     human_rew = {
-        (BLUE, 0): np.random.randint(5, 30),
-        (RED, 0): np.random.randint(5, 30),
-        (GREEN, 0): np.random.randint(5, 30),
+        (BLUE, 0): np.random.uniform(3, 11),
+        (RED, 0): np.random.uniform(3, 11),
+        (GREEN, 0): np.random.uniform(3, 11),
         # (YELLOW, 0): np.random.randint(3, 10),
         # (YELLOW, 1): np.random.randint(3,10)
     }
@@ -1167,15 +1167,15 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     human_rew_values = list(permutes[np.random.choice(np.arange(len(permutes)))])
     object_keys = list(human_rew.keys())
     if task_type == 'cirl_w_hard_rc':
-        # robot_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
+        robot_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
         # robot_rew = copy.deepcopy(human_rew)
-        robot_rew = {
-            (BLUE, 0): np.random.randint(5, 30),
-            (RED, 0): np.random.randint(5, 30),
-            (GREEN, 0): np.random.randint(5, 30),
-            # (YELLOW, 0): np.random.randint(3, 10),
-            # (YELLOW, 1): np.random.randint(3,10)
-        }
+        # robot_rew = {
+        #     (BLUE, 0): np.random.randint(3, 11),
+        #     (RED, 0): np.random.randint(3, 11),
+        #     (GREEN, 0): np.random.randint(3, 11),
+        #     # (YELLOW, 0): np.random.randint(3, 10),
+        #     # (YELLOW, 1): np.random.randint(3,10)
+        # }
         # robot_rew = {
         #     (BLUE, 0): human_rew[(BLUE, 0)]-5,
         #     (RED, 0): human_rew[(RED, 0)]-5,
@@ -1244,9 +1244,9 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
         # if object[1] == 0:
         #     count = 1
     # if 1 not in list(obj_type_to_count.values()):
-    max_key = max(human_rew, key=lambda k: human_rew[k])
-    random_obj = max_key
-    obj_type_to_count[random_obj] = 1
+    # max_key = max(human_rew, key=lambda k: human_rew[k])
+    # random_obj = max_key
+    # obj_type_to_count[random_obj] = 1
     # robot_rew[random_obj] -= 2
 
     for object in obj_type_to_count:
@@ -2731,7 +2731,7 @@ if __name__ == "__main__":
     # human_types = ['noiseless', 'boltz']
     task_types = ['cirl_w_hard_rc']
     exploration_types = ['wo_expl']
-    human_type = 'boltz_b1'
+    human_type = 'boltz_binf_pmf'
 
     global_seed = 0
     num_exps = 50

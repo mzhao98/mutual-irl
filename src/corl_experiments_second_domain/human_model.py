@@ -347,7 +347,7 @@ class Suboptimal_Collaborative_Human:
         return team_rew, robot_rew, human_rew
 
 
-    def act(self, state, round_no=0):
+    def act_in_dist(self, state, round_no=0):
         # best_human_act = []
         other_actions = []
         max_reward = -2
@@ -410,7 +410,7 @@ class Suboptimal_Collaborative_Human:
         # print("h_action_to_boltz_prob", h_action_to_boltz_prob)
         # print("probs", probs)
         # if round_no < 5:
-        h_action = h_action_keys[np.random.choice(np.arange(len(h_action_keys)), p=probs)]
+        # h_action = h_action_keys[np.random.choice(np.arange(len(h_action_keys)), p=probs)]
         # print("h_action", h_action)
         #
         # if len(best_human_act) == 0:
@@ -430,7 +430,7 @@ class Suboptimal_Collaborative_Human:
 
         return h_action
 
-    def act_ood(self, state, round_no=0):
+    def act(self, state, round_no=0):
         # best_human_act = []
         other_actions = []
         max_reward = -2
