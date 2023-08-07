@@ -17,6 +17,7 @@ src/corl_experiments/results/
 src/corl_experiments_copy/results/
 src/corl_experiments_second_domain/results/
 src/corl_experiments_second_domain_forte_broken/results/
+src/corl_experiments_second_domain_forte/results/
 src/corl_experiments_second_domain_copy_rl3/results/
 # Byte-compiled / optimized / DLL files
 __pycache__/
