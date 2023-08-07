@@ -1094,11 +1094,15 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     experiment_config['pref'] = pref
 
     human_rew = {
-        (BLUE, 0): np.random.uniform(3, 11),
-        (RED, 0): np.random.uniform(3, 11),
-        (GREEN, 0): np.random.uniform(3, 11),
+        (BLUE, 0): np.round(np.random.uniform(3, 10), 1),
+        (RED, 0): np.round(np.random.uniform(3, 10), 1),
+        (GREEN, 0): np.round(np.random.uniform(3, 10), 1),
         # (YELLOW, 1): np.random.randint(3,10)
     }
+    # max_reward_item = np.random.choice([0, 1, 2])
+    # objs_list = [(BLUE, 0), (RED, 0), (GREEN, 0)]
+    # max_reward_item = objs_list[max_reward_item]
+    # human_rew[max_reward_item] = np.random.randint(15, 21)
 
 
     # human_rew = {
@@ -1157,18 +1161,18 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     human_rew_values = list(permutes[np.random.choice(np.arange(len(permutes)))])
     object_keys = list(human_rew.keys())
     if task_type == 'cirl_w_hard_rc':
-        # robot_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
+        robot_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
         # robot_rew = {
         #     (BLUE, 0): human_rew[(BLUE, 0)] - 1,
         #     (RED, 0): human_rew[(RED, 0)] - 1,
         #     (GREEN, 0): human_rew[(GREEN, 0)] - 1,
         # }
-        robot_rew = {
-            (BLUE, 0): np.random.uniform(3, 11),
-            (RED, 0): np.random.uniform(3, 11),
-            (GREEN, 0): np.random.uniform(3, 11),
-            # (YELLOW, 1): np.random.randint(3,10)
-        }
+        # robot_rew = {
+        #     (BLUE, 0): np.random.uniform(3, 10),
+        #     (RED, 0): np.random.uniform(3, 10),
+        #     (GREEN, 0): np.random.uniform(3, 10),
+        #     # (YELLOW, 1): np.random.randint(3,10)
+        # }
         # robot_rew = {
         #     # (BLUE, 0): np.random.randint(-10, 10),
         #     (RED, 0): np.random.randint(3, 10),
@@ -1230,9 +1234,10 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
         # if object[1] == 0:
         #     count = 1
     # if 1 not in list(obj_type_to_count.values()):
-    # max_key = max(human_rew, key=lambda k: human_rew[k])
-    # random_obj = max_key
-    # obj_type_to_count[random_obj] = 1
+    max_key = max(human_rew, key=lambda k: human_rew[k])
+    random_obj = max_key
+    obj_type_to_count[random_obj] = 1
+    # robot_rew[random_obj] = 10
     # robot_rew[random_obj] -= 2
 
     for object in obj_type_to_count:
@@ -2717,7 +2722,8 @@ if __name__ == "__main__":
     human_type = 'boltz_prag_h_b1_actual_hv_1'
 
     global_seed = 0
-    experiment_number = f'domain2_3objs5_{robot_type}_{human_type}_human'
+    # experiment_number = f'domain2_basic_3objs5_{robot_type}_{human_type}_human'
+    experiment_number = f'domain2_basic_tenth_permute_3objs5_{robot_type}_{human_type}_human'
     # experiment_number = 'testing'
     # experiment_number = '7_baseline-cirl_boltz_human'
     # experiment_number = '7_coirl_birl-cirl_boltz_human'
