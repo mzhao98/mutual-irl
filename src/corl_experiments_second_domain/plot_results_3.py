@@ -667,10 +667,10 @@ def plot_cirl_w_hard_rc_3(human_types):
                           'noiseless': 'Optimistic Reward Human, \nRational',
                           }
 
-    num_exps = 5
+    num_exps = 50
 
     fig, ((ax1), (ax2), (ax3)) = plt.subplots(figsize=(15,4), nrows=1, ncols=3, sharex=True,
-                                                             sharey=True)
+                                                             sharey=False)
     # fig, axes = plt.subplots(nrows=3, ncols=2, sharex=False, sharey=False)
     plt.rcParams.update({'font.size': 13})
     # ax1, ax2, ax3, ax4, ax5, ax6 = axes.flatten()
