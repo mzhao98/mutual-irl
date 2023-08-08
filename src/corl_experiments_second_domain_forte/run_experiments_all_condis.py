@@ -1096,7 +1096,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     human_rew = {
         (BLUE, 0): np.random.randint(3, 10),
         (RED, 0): np.random.randint(3, 10),
-        (GREEN, 0): np.random.randint(3, 10),
+        (GREEN, 0): np.random.randint(3, 10)
         # (YELLOW, 0): np.random.randint(3, 10),
         # (YELLOW, 1): np.random.randint(3,10)
     }
@@ -1171,15 +1171,15 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     human_rew_values = list(permutes[np.random.choice(np.arange(len(permutes)))])
     object_keys = list(human_rew.keys())
     if task_type == 'cirl_w_hard_rc':
-        # robot_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
+        robot_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
         # robot_rew = copy.deepcopy(human_rew)
-        robot_rew = {
-            (BLUE, 0): np.random.randint(3, 10),
-            (RED, 0): np.random.randint(3, 10),
-            (GREEN, 0): np.random.randint(3, 10),
-            # (YELLOW, 0): np.random.randint(3, 10),
-            # (YELLOW, 1): np.random.randint(3,10)
-        }
+        # robot_rew = {
+        #     (BLUE, 0): np.random.randint(3, 10),
+        #     (RED, 0): np.random.randint(3, 10),
+        #     (GREEN, 0): np.random.randint(3, 10),
+        #     # (YELLOW, 0): np.random.randint(3, 10),
+        #     # (YELLOW, 1): np.random.randint(3,10)
+        # }
         # robot_rew = {
         #     (BLUE, 0): human_rew[(BLUE, 0)]-5,
         #     (RED, 0): human_rew[(RED, 0)]-5,
@@ -1242,7 +1242,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     starting_objects = []
     obj_type_to_count = {}
     for object in all_objects:
-        count = np.random.randint(2, 5)
+        count = np.random.randint(1, 5)
         obj_type_to_count[object] = count
         # count = 1
         # if object[1] == 0:
@@ -2744,7 +2744,8 @@ if __name__ == "__main__":
 
     # for human_type in human_types:
     # experiment_number = f'domain2_approp_diff_specified_3objs5_{robot_type}_{human_type}_human'
-    experiment_number = f'domain2_basic_ints_3objs5_{robot_type}_{human_type}_human'
+    # experiment_number = f'domain2_basic_ints_3objs5_{robot_type}_{human_type}_human'
+    experiment_number = f'domain2_basic_round_permutes_3objs5_{robot_type}_{human_type}_human'
     # f'2_1_3objs1_{robot_type}_{human_type}_human'
     # experiment_number = 'testing'
     # experiment_number = '7_baseline-cirl_boltz_human'
