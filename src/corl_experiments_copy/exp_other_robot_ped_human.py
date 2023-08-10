@@ -1251,7 +1251,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     cvi_rew, cvi_human_rew, cvi_robot_rew, multiround_belief_history, \
     reward_for_all_rounds, max_prob_is_correct, max_prob_is_close, num_equal_to_max, \
     lstm_accuracies_list, game_results = env.rollout_multiround_game_two_agents(replan_online, use_exploration,
-        num_rounds=3, plot=False)
+        num_rounds=9, plot=False)
     print("CVI final_team_rew = ", max(0.0, cvi_rew/optimal_rew))
     exp_results['cvi_rew'] = cvi_rew
     exp_results['cvi_multiround_belief_history'] = multiround_belief_history
@@ -1384,7 +1384,7 @@ def run_experiment(global_seed, experiment_number, task_type, exploration_type, 
 
 
 
-    round_to_percent_rewards = {i: [] for i in range(6)}
+    round_to_percent_rewards = {i: [] for i in range(10)}
 
     times_max_prob_is_correct = 0
     times_max_prob_is_close = 0
@@ -2686,10 +2686,10 @@ def run_experiment_random_human_without_multiprocess():
 if __name__ == "__main__":
     # eval_threshold()
     robot_type = 'robot_10_maxent_maxplan'
-    human_type = 'boltz_prag_h_binf_actual_hv_1'
+    human_type = 'boltz_prag_h_b1_actual_hv_1'
 
-    global_seed = 0
-    experiment_number = f'2_1_3objs1_{robot_type}_{human_type}_human'
+    global_seed = 1
+    experiment_number = f'domain1_5r_3objs5_rep2_{robot_type}_{human_type}_human'
     # experiment_number = 'testing'
     # experiment_number = '7_baseline-cirl_boltz_human'
     # experiment_number = '7_coirl_birl-cirl_boltz_human'

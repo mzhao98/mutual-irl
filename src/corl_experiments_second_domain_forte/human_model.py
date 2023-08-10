@@ -347,7 +347,7 @@ class Suboptimal_Collaborative_Human:
         return team_rew, robot_rew, human_rew
 
 
-    def act_indist(self, state, round_no=0):
+    def act(self, state, round_no=0):
         # best_human_act = []
         other_actions = []
         max_reward = -2
@@ -430,7 +430,7 @@ class Suboptimal_Collaborative_Human:
 
         return h_action
 
-    def act(self, state, round_no=0):
+    def act_ood(self, state, round_no=0):
         # best_human_act = []
         other_actions = []
         max_reward = -2
