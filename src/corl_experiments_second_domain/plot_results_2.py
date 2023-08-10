@@ -75,7 +75,7 @@ def get_data(foldername, global_seed, experiment_number, task_type, exploration_
     use_exploration = True
     if exploration_type == 'wo_expl':
         use_exploration = False
-
+    print("experiment_number", experiment_number)
     if foldername in ['exp1_noiseless_human', 'exp2_boltz_birl']:
         experiment_name = f'{foldername}/exp-{experiment_number}_nexps-{num_exps}_globalseed-{global_seed}_task-{task_type}_explore-{exploration_type}_replan-{replan_type}_h-{r_h_str}'
     else:
@@ -737,7 +737,8 @@ def plot_cirl_w_hard_rc_3(human_types):
             for robot_type in robot_types:
                 print("\n\nSTARTING robot type", robot_type)
 
-                experiment_number = f'domain2_4objs0_{robot_type}_{human_type}_human'
+                # experiment_number = f'domain2_4objs0_{robot_type}_{human_type}_human'
+                experiment_number = f'domain2_approp_diff_specified_3objs5_{robot_type}_{human_type}_human'
                 color_to_plot_with = robot_type_to_color[robot_type]
 
                 data = get_data(foldername, global_seed, experiment_number, task_type, exploration_type,
@@ -818,7 +819,7 @@ def plot_cirl_w_hard_rc_3(human_types):
                 ax.set_ylabel("Percent of Optimal Reward", fontsize=12)
             # ax.set_ylim([0, 1.6])
 
-    plt.savefig(f"exp7_{human_types}.png")
+    plt.savefig(f"exp8_{human_types}.png")
 
     plt.close()
 

@@ -19,6 +19,10 @@ src/corl_experiments_second_domain/results/
 src/corl_experiments_second_domain_forte_broken/results/
 src/corl_experiments_second_domain_forte/results/
 src/corl_experiments_second_domain_copy_rl3/results/
+src/meal_prep_domain/
+src/bait_shooter/results/
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

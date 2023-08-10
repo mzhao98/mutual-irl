@@ -10,8 +10,8 @@ import itertools
 from scipy import stats
 from multiprocessing import Pool, freeze_support
 
-from robot_1_birl_bsp_ig import Robot
-# from robot_2_birl_bsp import Robot
+# from robot_1_birl_bsp_ig import Robot
+from robot_2_birl_bsp import Robot
 # from robot_3_birl_maxplan import Robot
 # from robot_4_birl_maxplan_ig import Robot
 # from robot_5_pedbirl_pragplan import Robot
@@ -779,14 +779,14 @@ class Simultaneous_Cleanup():
                 if hasattr(self.robot, 'human_lstm') is False:
                     if type(self.robot) == Robot:
                         # print("human_action_successful", human_action_successful)
-                        if human_action_successful is True:
+                        # if human_action_successful is True:
                             # print("updating based on h action")
                             # print("current_state", current_state)
                             # print("human_action", human_action)
                             # max_key = max(self.robot.beliefs, key=lambda k: self.robot.beliefs[k]['prob'])
                             # print("old prob belief", self.robot.beliefs[max_key]['reward_dict'])
 
-                            self.robot.update_based_on_h_action(current_state, robot_action, human_action)
+                        self.robot.update_based_on_h_action(current_state, robot_action, human_action)
                             # max_key = max(self.robot.beliefs, key=lambda k: self.robot.beliefs[k]['prob'])
                             # print("new prob belief", self.robot.beliefs[max_key]['reward_dict'])
 
@@ -1093,11 +1093,18 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
 
     experiment_config['pref'] = pref
 
+    # human_rew = {
+    #     (BLUE, 0): np.random.randint(3, 10),
+    #     (RED, 0): np.random.randint(3, 10),
+    #     (GREEN, 0): np.random.randint(3, 10),
+    #     # (YELLOW, 0): np.random.randint(3, 10),
+    #     # (YELLOW, 1): np.random.randint(3,10)
+    # }
     human_rew = {
-        (BLUE, 0): np.random.randint(3, 10),
+        # (BLUE, 0): np.random.randint(3, 10),
         (RED, 0): np.random.randint(3, 10),
-        (GREEN, 0): np.random.randint(3, 10),
-        # (YELLOW, 0): np.random.randint(3, 10),
+        (RED, 1): np.random.randint(3, 10),
+        (BLUE, 1): np.random.randint(3, 10)
         # (YELLOW, 1): np.random.randint(3,10)
     }
     # max_reward_item = np.random.choice([0, 1, 2])
@@ -1171,15 +1178,15 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     human_rew_values = list(permutes[np.random.choice(np.arange(len(permutes)))])
     object_keys = list(human_rew.keys())
     if task_type == 'cirl_w_hard_rc':
-        # robot_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
+        robot_rew = {object_keys[i]: human_rew_values[i] for i in range(len(object_keys))}
         # robot_rew = copy.deepcopy(human_rew)
-        robot_rew = {
-            (BLUE, 0): np.random.randint(3, 10),
-            (RED, 0): np.random.randint(3, 10),
-            (GREEN, 0): np.random.randint(3, 10),
-            # (YELLOW, 0): np.random.randint(3, 10),
-            # (YELLOW, 1): np.random.randint(3,10)
-        }
+        # robot_rew = {
+        #     (BLUE, 0): np.random.randint(3, 10),
+        #     (RED, 0): np.random.randint(3, 10),
+        #     (GREEN, 0): np.random.randint(3, 10),
+        #     # (YELLOW, 0): np.random.randint(3, 10),
+        #     # (YELLOW, 1): np.random.randint(3,10)
+        # }
         # robot_rew = {
         #     (BLUE, 0): human_rew[(BLUE, 0)]-5,
         #     (RED, 0): human_rew[(RED, 0)]-5,
@@ -1235,14 +1242,15 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     # all_objects = [(RED, 0), (BLUE, 1), (RED, 1), (YELLOW, 1)]
     # all_objects = [(BLUE, 1), (GREEN, 1), (RED, 1), (YELLOW, 1)]
     # all_objects = [(BLUE, 0), (RED, 0), (BLUE, 1), (RED, 1)]
-    all_objects = [(RED, 0), (BLUE, 0), (GREEN, 0)]
+    # all_objects = [(RED, 0), (BLUE, 0), (GREEN, 0)]
+    all_objects = [(RED, 0), (BLUE, 1), (RED, 1)]
 
     n_objects = np.random.randint(4, 10)
     # starting_objects = [all_objects[i] for i in np.random.choice(np.arange(len(all_objects)), size=n_objects, replace=True)]
     starting_objects = []
     obj_type_to_count = {}
     for object in all_objects:
-        count = np.random.randint(2, 5)
+        count = np.random.randint(1, 5)
         obj_type_to_count[object] = count
         # count = 1
         # if object[1] == 0:
@@ -2730,12 +2738,12 @@ def run_experiment_random_human_without_multiprocess():
 
 if __name__ == "__main__":
     # eval_threshold()
-    robot_type = 'robot_1_birl_bsp_ig'
+    robot_type = 'robot_2_birl_bsp'
 
     # human_types = ['noiseless', 'boltz']
     task_types = ['cirl_w_hard_rc']
     exploration_types = ['wo_expl']
-    human_type = 'boltz_binf_pmf'
+    human_type = 'noiseless'
 
     global_seed = 0
     num_exps = 50
@@ -2744,7 +2752,7 @@ if __name__ == "__main__":
 
     # for human_type in human_types:
     # experiment_number = f'domain2_approp_diff_specified_3objs5_{robot_type}_{human_type}_human'
-    experiment_number = f'domain2_basic_ints_3objs5_{robot_type}_{human_type}_human'
+    experiment_number = f'domain2_redo_og_3objs5_{robot_type}_{human_type}_human'
     # f'2_1_3objs1_{robot_type}_{human_type}_human'
     # experiment_number = 'testing'
     # experiment_number = '7_baseline-cirl_boltz_human'
