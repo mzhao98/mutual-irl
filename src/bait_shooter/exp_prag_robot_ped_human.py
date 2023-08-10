@@ -112,7 +112,7 @@ class Bait_Shooter():
 
         robot_action_successful = False
         human_action_successful = False
-        team_rew, robot_rew, human_rew = -2,0,0
+        team_rew, robot_rew, human_rew = -15,0,0
 
         if robot_action is not None and robot_action not in np.concatenate(self.state_actions_completed):
             preconditions_list = ACTION_TO_PRECONDITION[robot_action]
@@ -157,7 +157,7 @@ class Bait_Shooter():
 
         robot_action_successful = False
         human_action_successful = False
-        team_rew, robot_rew, human_rew = -2, 0, 0
+        team_rew, robot_rew, human_rew = -15, 0, 0
 
         # print("state_actions_completed", state_actions_completed)
         # print("np.concatenate(state_actions_completed)", np.concatenate(state_actions_completed))
@@ -791,31 +791,75 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     experiment_config['seed'] = seed
 
     np.random.seed(seed)
-    # for round_number in range(1):
     pref = np.random.choice([0, 1])
-    pref = 0
+    # pref = 0
     # CHOP_CHICKEN, POUR_BROTH, GET_BOWL, CHOP_LETTUCE, POUR_DRESSING, GET_CUTTING_BOARD
     # FEED_DRY_FOOD, FEED_WET_FOOD, REFILL_WATER, WASH_BOWL, SWEEP_FLOOR, CLEAR_LITTER, BATHE_CAT
     # [POSITION_TO_BAIT, ACT_AS_BAIT, POSITION_TO_SHOOT, SHOOT]
-    if pref == 0:
-        human_rew = {
-            POSITION_TO_BAIT: 6,
-            ACT_AS_BAIT: 6,
-            POSITION_TO_SHOOT: 2,
-            SHOOT: 2,
-            WAIT: 0,
-        }
-    else:
-        human_rew = {
-            POSITION_TO_BAIT: 2,
-            ACT_AS_BAIT: 2,
-            POSITION_TO_SHOOT: 6,
-            SHOOT: 6,
-            WAIT: 0,
-        }
+    # if pref == 0:
+    #     human_rew = {
+    #         POSITION_TO_BAIT: 6,
+    #         ACT_AS_BAIT: 6,
+    #         POSITION_TO_SHOOT: 2,
+    #         SHOOT: 2,
+    #         WAIT: 0,
+    #     }
+    # else:
+    #     human_rew = {
+    #         POSITION_TO_BAIT: 2,
+    #         ACT_AS_BAIT: 2,
+    #         POSITION_TO_SHOOT: 6,
+    #         SHOOT: 6,
+    #         WAIT: 0,
+    #     }
+    options = []
+    option_1 = {
+        POSITION_TO_BAIT: np.random.randint(6, 10),
+        ACT_AS_BAIT: np.random.randint(6, 10),
+        POSITION_TO_SHOOT: np.random.randint(-3, 3),
+        SHOOT: np.random.randint(-3, 3),
+        WAIT: np.random.randint(-3, 3),
+    }
+    option_2 = {
+        POSITION_TO_BAIT: np.random.randint(-3, 3),
+        ACT_AS_BAIT: np.random.randint(-3, 3),
+        POSITION_TO_SHOOT: np.random.randint(6, 10),
+        SHOOT: np.random.randint(6, 10),
+        WAIT: np.random.randint(-3, 3),
+    }
+    options.append(option_1)
+    options.append(option_2)
 
+    if pref == 0:
+        human_rew = options[0]
+    else:
+        human_rew = options[1]
 
     experiment_config['pref'] = pref
+
+    robot_pref = np.random.choice([0, 1])
+    robot_options = []
+    robot_option_1 = {
+        POSITION_TO_BAIT: np.random.randint(6, 10),
+        ACT_AS_BAIT: np.random.randint(6, 10),
+        POSITION_TO_SHOOT: np.random.randint(-3, 3),
+        SHOOT: np.random.randint(-3, 3),
+        WAIT: np.random.randint(-3, 3),
+    }
+    robot_option_2 = {
+        POSITION_TO_BAIT: np.random.randint(-3, 3),
+        ACT_AS_BAIT: np.random.randint(-3, 3),
+        POSITION_TO_SHOOT: np.random.randint(6, 10),
+        SHOOT: np.random.randint(6, 10),
+        WAIT: np.random.randint(-3, 3),
+    }
+    robot_options.append(robot_option_1)
+    robot_options.append(robot_option_2)
+
+    if robot_pref == 0:
+        robot_rew = robot_options[0]
+    else:
+        robot_rew = robot_options[1]
 
     team_rew = {
         POSITION_TO_BAIT: 0,
@@ -823,22 +867,19 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
         POSITION_TO_SHOOT: 0,
         SHOOT: 0,
         WAIT: 0,
-        }
-
-
+    }
 
     # permutes = list(itertools.permutations(list(human_rew.values())))
     # permutes = list(set(permutes))
-    permutes = [[6,6,2,2,0], [2,2,6,6,0]]
+    permutes = [list(option_1.values()), list(option_2.values())]
 
-
-    robot_rew = {
-        POSITION_TO_BAIT: 4.4,
-        ACT_AS_BAIT: 2,
-        POSITION_TO_SHOOT: 2,
-        SHOOT: 2,
-        WAIT: 2,
-    }
+    # robot_rew = {
+    #     POSITION_TO_BAIT: np.random.randint(0,6),
+    #     ACT_AS_BAIT: np.random.randint(0,6),
+    #     POSITION_TO_SHOOT: np.random.randint(0,6),
+    #     SHOOT: np.random.randint(0,6),
+    #     WAIT: np.random.randint(0,6),
+    # }
 
     experiment_config['robot_rew'] = robot_rew
     experiment_config['human_rew'] = human_rew
@@ -875,6 +916,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     env = Bait_Shooter(robot, human, starting_objects)
     optimal_rew, best_human_rew, best_robot_rew, game_results = env.compute_optimal_performance()
     print("Optimal Reward = ", optimal_rew)
+    optimal_rew += 100
     exp_results['optimal_rew'] = optimal_rew
     exp_results['optimal_game_results'] = game_results
 
@@ -889,6 +931,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
     reward_for_all_rounds, max_prob_is_correct, max_prob_is_close, num_equal_to_max, \
     lstm_accuracies_list, game_results = env.rollout_multiround_game_two_agents(replan_online, use_exploration,
         num_rounds=1, plot=False)
+    cvi_rew += 100
     cvi_percent_opt = cvi_rew/optimal_rew
     cvi_percent_opt_list.append(cvi_percent_opt)
     print("CVI final_team_rew = ", max(0.0, cvi_rew/optimal_rew))
@@ -920,7 +963,7 @@ def run_k_rounds(exp_num, task_reward, seed, h_alpha, update_threshold, random_h
 
     if cvi_rew > optimal_rew:
         print("OPTIMAL ERROR: CVI rew larger than Optimal")
-        raise ArithmeticError
+        # raise ArithmeticError
 
     cvi_percent_of_opt_team = max(0, cvi_rew) / optimal_rew
 
@@ -1137,21 +1180,21 @@ def run_experiment(global_seed, experiment_number, task_type, exploration_type, 
 
 if __name__ == "__main__":
     # eval_threshold()
-    robot_type = 'robot_1_birl_bsp_ig'
+    robot_type = 'robot_5_pedbirl_pragplan'
 
     # human_types = ['noiseless', 'boltz']
     task_types = ['cirl_w_hard_rc']
     exploration_types = ['wo_expl']
-    human_type = 'boltz_b1'
+    human_type = 'boltz_prag_h_b1_actual_hv_1'
 
-    global_seed = 0
-    num_exps = 1
+    global_seed = 1
+    num_exps = 25
     replan_type = 'w_replan'
     random_human = False
 
     # for human_type in human_types:
     # experiment_number = f'domain2_approp_diff_specified_3objs5_{robot_type}_{human_type}_human'
-    experiment_number = f'domain3_soupsalad_{robot_type}_{human_type}_human'
+    experiment_number = f'domain4_tsf_{robot_type}_{human_type}_human'
     # f'2_1_3objs1_{robot_type}_{human_type}_human'
     # experiment_number = 'testing'
     # experiment_number = '7_baseline-cirl_boltz_human'

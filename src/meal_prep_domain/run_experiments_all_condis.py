@@ -35,7 +35,7 @@ import subprocess
 import glob
 
 # ROBOT_TYPE = 'exp2_cirl_w_hard_rc_wo_expl_w_replan'
-
+MAX_LENGTH_TIME = 4
 CHOP_CHICKEN = 0
 POUR_BROTH = 1
 GET_BOWL = 2
@@ -87,18 +87,13 @@ class Meal_Prep():
         return possible_joint_actions
 
     def is_done(self):
-        salad_actions = [GET_PLATE, CHOP_LETTUCE, POUR_DRESSING, GET_CUTTING_BOARD]
-        soup_actions = [CHOP_CHICKEN, POUR_BROTH, GET_BOWL, GET_CUTTING_BOARD]
-        if set(soup_actions).issubset(self.state_actions_completed) or set(salad_actions).issubset(
-                self.state_actions_completed):
+        if len(self.state_actions_completed) >= MAX_LENGTH_TIME:
             return True
         return False
 
     def is_done_given_state(self, state_actions_completed):
-        salad_actions = [GET_PLATE, CHOP_LETTUCE, POUR_DRESSING, GET_CUTTING_BOARD]
-        soup_actions = [CHOP_CHICKEN, POUR_BROTH, GET_BOWL, GET_CUTTING_BOARD]
         done = False
-        if set(soup_actions).issubset(state_actions_completed) or set(salad_actions).issubset(state_actions_completed):
+        if len(state_actions_completed) >= MAX_LENGTH_TIME:
             done = True
         return done
 
@@ -128,6 +123,10 @@ class Meal_Prep():
                 self.state_actions_completed.append(human_action)
                 human_rew += self.human.ind_rew[human_action]
 
+        salad_actions = [GET_BOWL, CHOP_LETTUCE, POUR_DRESSING, GET_CUTTING_BOARD]
+        soup_actions = [CHOP_CHICKEN, POUR_BROTH, GET_BOWL, GET_CUTTING_BOARD]
+        if set(soup_actions).issubset(self.state_actions_completed) or set(salad_actions).issubset(self.state_actions_completed):
+            team_rew += 20
 
         done = self.is_done()
         if done:

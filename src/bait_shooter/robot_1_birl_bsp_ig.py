@@ -1370,7 +1370,7 @@ class Robot:
 
         total_rounds = 4
         # explore_phi = max(0.0, -(10.0 / total_rounds) * round_no + 10.0)
-        explore_phi = 20.0
+        explore_phi = 10.0
         print("single_action_distribution", single_action_distribution)
         print("robot_action_to_info_gain", robot_action_to_info_gain)
         for single_r_action in single_action_distribution:

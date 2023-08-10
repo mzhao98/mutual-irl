@@ -11,7 +11,7 @@ from scipy import stats
 from multiprocessing import Pool, freeze_support
 
 # from robot_1_birl_bsp_ig import Robot
-# from robot_2_birl_bsp import Robot
+from robot_2_birl_bsp import Robot
 # from robot_3_birl_maxplan import Robot
 # from robot_4_birl_maxplan_ig import Robot
 # from robot_5_pedbirl_pragplan import Robot
@@ -19,7 +19,7 @@ from multiprocessing import Pool, freeze_support
 # from robot_7_taskbirl_pragplan import Robot
 # from robot_8_birlq_bsp_ig import Robot
 # from robot_9_birlq_bsp import Robot
-from robot_10_maxent_maxplan import Robot
+# from robot_10_maxent_maxplan import Robot
 
 
 from human_model import Greedy_Human, Collaborative_Human, Suboptimal_Collaborative_Human
@@ -2738,12 +2738,12 @@ def run_experiment_random_human_without_multiprocess():
 
 if __name__ == "__main__":
     # eval_threshold()
-    robot_type = 'robot_10_maxent_maxplan'
+    robot_type = 'robot_2_birl_bsp'
 
     # human_types = ['noiseless', 'boltz']
     task_types = ['cirl_w_hard_rc']
     exploration_types = ['wo_expl']
-    human_type = 'boltz_b1'
+    human_type = 'noiseless'
 
     global_seed = 0
     num_exps = 50
